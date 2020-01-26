@@ -474,10 +474,13 @@ void usb_lld_reset(USBDriver *usbp) {
  */
 void usb_lld_set_address(USBDriver *usbp) {
 <<<<<<< HEAD
+<<<<<<< HEAD
   SN_USB->ADDR = usbp->address;
   // USB_EPnAck(USB_EP0,0);
     // address = usbp->address;
 =======
+=======
+>>>>>>> c8a3833b8... merge working
     address = usbp->address;
 
     USB_EPnAck(USB_EP1, 0);
