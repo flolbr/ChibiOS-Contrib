@@ -345,7 +345,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 	/////////////////////////////////////////////////
 	else if (iwIntFlag & (mskEP0_SETUP|mskEP0_IN|mskEP0_OUT|mskEP0_IN_STALL|mskEP0_OUT_STALL))
 	{
-        const USBEndpointConfig *epcp = usbp->epc[0];
+        // const USBEndpointConfig *epcp = usbp->epc[0];
 
 		if (iwIntFlag & mskEP0_SETUP)
 		{
@@ -369,18 +369,18 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 		}
 		else if (iwIntFlag & mskEP0_OUT)
 		{
-            // size_t cnt = SN_USB->EP0CTL_b.ENDP_CNT;
-            // sn32_usb_read_fifo(0, epcp->out_state->rxbuf, cnt);
-            // epcp->out_state->rxbuf += cnt;
-            // epcp->out_state->
-
+			/* OUT */
+			// USB_EP0OutEvent();
+            // _usb_isr_invoke_out_cb(usbp, 0);
             __USB_CLRINSTS(mskEP0_OUT);
-            _usb_isr_invoke_out_cb(usbp, 0);
+            usb_serve_endpoints(usbp, 0, iwIntFlag);
+            USB_EPnAck(USB_EP0,0);
 		}
 		else if (iwIntFlag & (mskEP0_IN_STALL|mskEP0_OUT_STALL))
 		{
 			/* EP0_IN_OUT_STALL */
-			USB_EPnStall(USB_EP0);
+			// USB_EPnStall(USB_EP0);
+            usb_serve_endpoints(usbp, 0, iwIntFlag);
             SN_USB->INSTSC = (mskEP0_IN_STALL|mskEP0_OUT_STALL);
 		}
 	}
@@ -565,9 +565,9 @@ void usb_lld_reset(USBDriver *usbp) {
  * @notapi
  */
 void usb_lld_set_address(USBDriver *usbp) {
-  // SN_USB->ADDR = usbp->address;
+  SN_USB->ADDR = usbp->address;
   // USB_EPnAck(USB_EP0,0);
-    address = usbp->address;
+    // address = usbp->address;
 }
 
 /**
@@ -579,7 +579,7 @@ void usb_lld_set_address(USBDriver *usbp) {
  * @notapi
  */
 void usb_lld_init_endpoint(USBDriver *usbp, usbep_t ep) {
-    uint32_t 	wTmp = 0;
+    // uint32_t 	wTmp = 0;
     // sn32_usb_descriptor_t *dp;
     const USBEndpointConfig *epcp = usbp->epc[ep];
 
@@ -669,7 +669,7 @@ void usb_lld_init_endpoint(USBDriver *usbp, usbep_t ep) {
         // }
     }
 
-    SN_USB->CFG |= wTmp;
+    // SN_USB->CFG |= wTmp;
 
 }
 
@@ -768,7 +768,28 @@ usbepstatus_t usb_lld_get_status_in(USBDriver *usbp, usbep_t ep) {
  * @notapi
  */
 void usb_lld_read_setup(USBDriver *usbp, usbep_t ep, uint8_t *buf) {
+	//** keep EP0	NAK
+	USB_EPnNak(USB_EP0);
+
     sn32_usb_read_fifo(ep, buf, 8);
+
+    // uint32_t	USB_SRAM_EP0_W0, USB_SRAM_EP0_W1;
+    // uint32_t	USB_SRAM_EP0_W0;
+
+	//** Clear ENDP0_SETUP & ENDP0_PRESETUP = 0
+	// __USB_CLRINSTS((mskEP0_SETUP|mskEP0_PRESETUP|mskEP0_OUT_STALL|mskEP0_IN_STALL));
+
+    // /*save SETUP cmd data*/
+    // fnUSBINT_ReadFIFO(0x00);
+    // USB_SRAM_EP0_W0 = wUSBINT_ReadDataBuf;
+    // memcpy(buf, USB_SRAM_EP0_W0, 4);
+    // fnUSBINT_ReadFIFO(0x04);
+    // USB_SRAM_EP0_W1 = wUSBINT_ReadDataBuf;
+    // memcpy(buf+2, USB_SRAM_EP0_W1, 4);
+
+    // fnUSBINT_ReadFIFO(0x00);
+    // USB_SRAM_EP0_W0 = wUSBINT_ReadDataBuf;
+    // memcpy(buf, &USB_SRAM_EP0_W0, 4);
 }
 
 // /**
@@ -886,7 +907,7 @@ void usb_lld_stall_in(USBDriver *usbp, usbep_t ep) {
  */
 void usb_lld_clear_out(USBDriver *usbp, usbep_t ep) {
 
-//   __USB_CLRINSTS(mskEP0_OUT);
+  __USB_CLRINSTS(mskEP0_OUT);
 
 }
 
@@ -900,7 +921,7 @@ void usb_lld_clear_out(USBDriver *usbp, usbep_t ep) {
  */
 void usb_lld_clear_in(USBDriver *usbp, usbep_t ep) {
 
-//   __USB_CLRINSTS(mskEP0_IN);
+  __USB_CLRINSTS(mskEP0_IN);
 
 }
 
