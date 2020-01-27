@@ -100,7 +100,7 @@ static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
     size_t chunk;
     uint32_t data;
 
-    // if (ep == 0) {
+    if (ep == 0) {
         off = 0;
 
         while (off != sz) {
@@ -118,15 +118,9 @@ static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
             off += chunk;
             buf += chunk;
         }
-<<<<<<< HEAD
-    // } else {
-    //     __asm__ volatile ("bkpt");
-    // }
-=======
     } else {
         // __asm__ volatile ("bkpt");
     }
->>>>>>> aeacf3105... cleanup
 }
 
 static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
@@ -134,7 +128,7 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
     size_t chunk;
     uint32_t data;
 
-    // if (ep == 0) {
+    if (ep == 0) {
         off = 0;
 
         while (off != sz) {
@@ -152,11 +146,6 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
             off += chunk;
             buf += chunk;
         }
-<<<<<<< HEAD
-    // } else {
-    //     __asm__ volatile ("bkpt");
-    // }
-=======
     } else {
         off = 0;
 
@@ -176,7 +165,6 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
             buf += chunk;
         }
     }
->>>>>>> d2297ee16... support sending
 }
 
 /**
@@ -212,93 +200,6 @@ static void usb_packet_write_from_buffer(usbep_t ep, const uint8_t *buf, size_t 
 }
 
 /**
-<<<<<<< HEAD
-=======
- * @brief   Common ISR code, serves the EP-related interrupts.
- *
- * @param[in] usbp      pointer to the @p USBDriver object
- * @param[in] ep        endpoint number
- *
- * @notapi
- */
-static void usb_serve_endpoints(USBDriver *usbp, uint32_t ep, uint32_t iwIntFlag) {
-  size_t n;
-  uint32_t usbCfg = SN_USB->CFG;
-//   uint32_t iwIntFlag = SN_USB->INSTS;
-  const USBEndpointConfig *epcp = usbp->epc[ep];
-
-  if ((usbCfg>>(ep-1)) & mskEP1_DIR) {
-    /* IN endpoint, transmission.*/
-    USBInEndpointState *isp = epcp->in_state;
-
-    // EPR_CLEAR_CTR_TX(ep);
-    // mskEPn_CNT
-
-    isp->txcnt += isp->txlast;
-    n = isp->txsize - isp->txcnt;
-    if (n > 0) {
-      /* Transfer not completed, there are more packets to send.*/
-      if (n > epcp->in_maxsize)
-        n = epcp->in_maxsize;
-
-      /* Writes the packet from the defined buffer.*/
-      isp->txbuf += isp->txlast;
-      isp->txlast = n;
-      usb_packet_write_from_buffer(ep, isp->txbuf, n);
-      fnUSBINT_WriteFIFO((uint32_t)*isp->txbuf, n);
-    //   SN_USB->RWADDR = 0x00;//(uint32_t)*isp->txbuf;
-    //   SN_USB->RWDATA = (uint32_t)*isp->txbuf;
-    //   SN_USB->RWSTATUS = 0x01;
-    //   while (SN_USB->RWSTATUS &0x01);
-
-      /* Starting IN operation.*/
-    //   EPR_SET_STAT_TX(ep, EPR_STAT_TX_VALID);
-    }
-    else {
-      /* Transfer completed, invokes the callback.*/
-      _usb_isr_invoke_in_cb(usbp, ep);
-    }
-  }
-  if (~(usbCfg>>(ep-1)) & mskEP1_DIR) {
-    /* OUT endpoint, receive.*/
-
-    // EPR_CLEAR_CTR_RX(ep);
-    // mskEPn_CNT
-
-    if (iwIntFlag & mskEP0_SETUP) {
-      /* Setup packets handling, setup packets are handled using a specific callback.*/
-      _usb_isr_invoke_setup_cb(usbp, ep);
-    }
-    else {
-      USBOutEndpointState *osp = epcp->out_state;
-
-      /* Reads the packet into the defined buffer.*/
-      n = usb_packet_read_to_buffer(ep, osp->rxbuf);
-      osp->rxbuf += n;
-
-      /* Transaction data updated.*/
-      osp->rxcnt  += n;
-      osp->rxsize -= n;
-      osp->rxpkts -= 1;
-
-      /* The transaction is completed if the specified number of packets
-         has been received or the current packet is a short packet.*/
-      if ((n < epcp->out_maxsize) || (osp->rxpkts == 0)) {
-        /* Transfer complete, invokes the callback.*/
-        _usb_isr_invoke_out_cb(usbp, ep);
-      }
-      else {
-        /* Transfer not complete, there are more packets to receive.*/
-        // EPR_SET_STAT_RX(ep, EPR_STAT_RX_VALID);
-      }
-    }
-  }
-}
-
-uint16_t get_usb_descriptor(const uint16_t wValue, const uint16_t wIndex, const void** const DescriptorAddress);
-
-/**
->>>>>>> aeacf3105... cleanup
  * @brief   USB shared ISR.
  *
  * @param[in] usbp      pointer to the @p USBDriver object
@@ -355,24 +256,15 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 		if (iwIntFlag & mskEP0_SETUP)
 		{
 			/* SETUP */
-<<<<<<< HEAD
-      __USB_CLRINSTS((mskEP0_SETUP|mskEP0_PRESETUP|mskEP0_OUT_STALL|mskEP0_IN_STALL));
-      //** keep EP0	NAK
-      USB_EPnNak(USB_EP0);
-      _usb_isr_invoke_setup_cb(usbp, 0);
-      USB_EPnAck(USB_EP0, epcp->in_state->txsize);
-=======
             __USB_CLRINSTS((mskEP0_SETUP|mskEP0_PRESETUP|mskEP0_OUT_STALL|mskEP0_IN_STALL));
             //** keep EP0	NAK
             USB_EPnNak(USB_EP0);
             _usb_isr_invoke_setup_cb(usbp, 0);
             USB_EPnAck(USB_EP0, epcp->in_state->txsize);
->>>>>>> aeacf3105... cleanup
 		}
 		else if (iwIntFlag & mskEP0_IN)
 		{
 			/* IN */
-<<<<<<< HEAD
       __USB_CLRINSTS(mskEP0_IN);
       if (address) {
         SN_USB->ADDR = address;
@@ -380,15 +272,6 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
         USB_EPnStall(USB_EP0);
       }
       USB_EPnAck(USB_EP0,0);
-=======
-            __USB_CLRINSTS(mskEP0_IN);
-            if (address) {
-                SN_USB->ADDR = address;
-                address = 0;
-                USB_EPnStall(USB_EP0);
-            }
-            USB_EPnAck(USB_EP0,0);
->>>>>>> aeacf3105... cleanup
 		}
 		else if (iwIntFlag & mskEP0_OUT)
 		{
@@ -396,7 +279,6 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
             __USB_CLRINSTS(mskEP0_OUT);
             _usb_isr_invoke_out_cb(usbp, 0);
 		}
-		else if (iwIntFlag & (mskEP0_IN_STALL|mskEP0_OUT_STALL))
 		{
 			/* EP0_IN_OUT_STALL */
 			USB_EPnStall(USB_EP0);
