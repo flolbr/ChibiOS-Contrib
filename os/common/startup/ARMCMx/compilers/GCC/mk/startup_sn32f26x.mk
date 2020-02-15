@@ -11,7 +11,7 @@ STARTUPINC = $(CHIBIOS)/os/common/portability/GCC \
              $(CHIBIOS)/os/common/ext/ARM/CMSIS/Core/Include \
              $(CHIBIOS_CONTRIB)/os/common/ext/SN/SN32F26x
 
-STARTUPLD  = $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/ld
+STARTUPLD  = $(CHIBIOS_CONTRIB)/os/common/startup/ARMCMx/compilers/GCC/ld
 
 # Shared variables
 ALLXASMSRC += $(STARTUPASM)
