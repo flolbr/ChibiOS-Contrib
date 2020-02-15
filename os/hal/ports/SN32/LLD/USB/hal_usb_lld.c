@@ -167,37 +167,7 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
     }
 }
 
-/**
- * @brief   Reads from a dedicated packet buffer.
- *
- * @param[in] ep        endpoint number
- * @param[out] buf      buffer where to copy the packet data
- * @return              The size of the receive packet.
- *
- * @notapi
- */
-static size_t usb_packet_read_to_buffer(usbep_t ep, uint8_t *buf) {
-    size_t n;
-
-    n = (SN_USB->EP0CTL + ep) & mskEPn_CNT; // Endpoint byte count
-    sn32_usb_read_fifo(ep, buf, n);
-
-    return n;
-}
-
-/**
- * @brief   Writes to a dedicated packet buffer.
- *
- * @param[in] ep        endpoint number
- * @param[in] buf       buffer where to fetch the packet data
- * @param[in] n         maximum number of bytes to copy. This value must
- *                      not exceed the maximum packet size for this endpoint.
- *
- * @notapi
- */
-static void usb_packet_write_from_buffer(usbep_t ep, const uint8_t *buf, size_t n) {
-    sn32_usb_write_fifo(ep, buf, n);
-}
+uint16_t get_usb_descriptor(const uint16_t wValue, const uint16_t wIndex, const void** const DescriptorAddress);
 
 /**
  * @brief   USB shared ISR.
@@ -251,7 +221,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 	/////////////////////////////////////////////////
 	else if (iwIntFlag & (mskEP0_SETUP|mskEP0_IN|mskEP0_OUT|mskEP0_IN_STALL|mskEP0_OUT_STALL))
 	{
-        // const USBEndpointConfig *epcp = usbp->epc[0];
+        const USBEndpointConfig *epcp = usbp->epc[0];
 
 		if (iwIntFlag & mskEP0_SETUP)
 		{
@@ -265,13 +235,13 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 		else if (iwIntFlag & mskEP0_IN)
 		{
 			/* IN */
-      __USB_CLRINSTS(mskEP0_IN);
-      if (address) {
-        SN_USB->ADDR = address;
-        address = 0;
-        USB_EPnStall(USB_EP0);
-      }
-      USB_EPnAck(USB_EP0,0);
+            __USB_CLRINSTS(mskEP0_IN);
+            if (address) {
+                SN_USB->ADDR = address;
+                address = 0;
+                USB_EPnStall(USB_EP0);
+            }
+            USB_EPnAck(USB_EP0,0);
 		}
 		else if (iwIntFlag & mskEP0_OUT)
 		{
@@ -279,6 +249,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
             __USB_CLRINSTS(mskEP0_OUT);
             _usb_isr_invoke_out_cb(usbp, 0);
 		}
+		else if (iwIntFlag & (mskEP0_IN_STALL|mskEP0_OUT_STALL))
 		{
 			/* EP0_IN_OUT_STALL */
 			USB_EPnStall(USB_EP0);
@@ -314,6 +285,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
             __USB_CLRINSTS(mskEP4_ACK);
             _usb_isr_invoke_in_cb(usbp, 4);
 		}
+    }
 	else if (iwIntFlag & (mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK))
 	{
 		if (iwIntFlag & mskEP1_NAK)
@@ -321,28 +293,24 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 			/* EP1 NAK */
 			// USB_EP1NakEvent();
             USB_EPnNak(USB_EP1);
-            // usb_serve_endpoints(usbp, 1, iwIntFlag);
 		}
 		if (iwIntFlag & mskEP2_NAK)
 		{
 			/* EP2 NAK */
 			// USB_EP2NakEvent();
             USB_EPnNak(USB_EP2);
-            // usb_serve_endpoints(usbp, 2, iwIntFlag);
 		}
 		if (iwIntFlag & mskEP3_NAK)
 		{
 			/* EP3 NAK */
 			// USB_EP3NakEvent();
             USB_EPnNak(USB_EP3);
-            // usb_serve_endpoints(usbp, 3, iwIntFlag);
 		}
 		if (iwIntFlag & mskEP4_NAK)
 		{
 			/* EP4 NAK */
 			// USB_EP4NakEvent();
             USB_EPnNak(USB_EP4);
-            // usb_serve_endpoints(usbp, 4, iwIntFlag);
 		}
 	}
 
@@ -457,19 +425,10 @@ void usb_lld_reset(USBDriver *usbp) {
  * @notapi
  */
 void usb_lld_set_address(USBDriver *usbp) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-  SN_USB->ADDR = usbp->address;
-  // USB_EPnAck(USB_EP0,0);
-    // address = usbp->address;
-=======
-=======
->>>>>>> c8a3833b8... merge working
     address = usbp->address;
 
     USB_EPnAck(USB_EP1, 0);
     USB_EPnAck(USB_EP2, 0);
->>>>>>> d2297ee16... support sending
 }
 
 /**
@@ -670,59 +629,9 @@ usbepstatus_t usb_lld_get_status_in(USBDriver *usbp, usbep_t ep) {
  * @notapi
  */
 void usb_lld_read_setup(USBDriver *usbp, usbep_t ep, uint8_t *buf) {
-	//** keep EP0	NAK
-	USB_EPnNak(USB_EP0);
 
     sn32_usb_read_fifo(ep, buf, 8);
-
-    // uint32_t	USB_SRAM_EP0_W0, USB_SRAM_EP0_W1;
-    // uint32_t	USB_SRAM_EP0_W0;
-
-	//** Clear ENDP0_SETUP & ENDP0_PRESETUP = 0
-	// __USB_CLRINSTS((mskEP0_SETUP|mskEP0_PRESETUP|mskEP0_OUT_STALL|mskEP0_IN_STALL));
-
-    // /*save SETUP cmd data*/
-    // fnUSBINT_ReadFIFO(0x00);
-    // USB_SRAM_EP0_W0 = wUSBINT_ReadDataBuf;
-    // memcpy(buf, USB_SRAM_EP0_W0, 4);
-    // fnUSBINT_ReadFIFO(0x04);
-    // USB_SRAM_EP0_W1 = wUSBINT_ReadDataBuf;
-    // memcpy(buf+2, USB_SRAM_EP0_W1, 4);
-
-    // fnUSBINT_ReadFIFO(0x00);
-    // USB_SRAM_EP0_W0 = wUSBINT_ReadDataBuf;
-    // memcpy(buf, &USB_SRAM_EP0_W0, 4);
 }
-
-// /**
-//  * @brief   Prepares for a receive operation.
-//  *
-//  * @param[in] usbp      pointer to the @p USBDriver object
-//  * @param[in] ep        endpoint number
-//  *
-//  * @notapi
-//  */
-// void usb_lld_prepare_receive(USBDriver *usbp, usbep_t ep) {
-
-//   (void)usbp;
-//   (void)ep;
-
-// }
-
-// /**
-//  * @brief   Prepares for a transmit operation.
-//  *
-//  * @param[in] usbp      pointer to the @p USBDriver object
-//  * @param[in] ep        endpoint number
-//  *
-//  * @notapi
-//  */
-// void usb_lld_prepare_transmit(USBDriver *usbp, usbep_t ep) {
-
-//   (void)usbp;
-//   (void)ep;
-
-// }
 
 /**
  * @brief   Starts a receive operation on an OUT endpoint.
@@ -765,7 +674,7 @@ void usb_lld_start_in(USBDriver *usbp, usbep_t ep) {
     n = (size_t)usbp->epc[ep]->in_maxsize;
 
   isp->txlast = n;
-  usb_packet_write_from_buffer(ep, isp->txbuf, n);
+  sn32_usb_write_fifo(ep, isp->txbuf, n);
   USB_EPnAck(ep, n);
 }
 

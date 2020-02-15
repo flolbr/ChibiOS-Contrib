@@ -1,10 +1,10 @@
 # Required platform files.
 PLATFORMSRC := $(CHIBIOS)/os/hal/ports/common/ARMCMx/nvic.c \
-               $(CHIBIOS)/os/hal/ports/SN32/SN32F260/hal_lld.c
+               $(CHIBIOS_CONTRIB)/os/hal/ports/SN32/SN32F260/hal_lld.c
 
 # Required include directories.
 PLATFORMINC := $(CHIBIOS)/os/hal/ports/common/ARMCMx \
-               $(CHIBIOS)/os/hal/ports/SN32/SN32F260
+               $(CHIBIOS_CONTRIB)/os/hal/ports/SN32/SN32F260
 
 # Optional platform files.
 ifeq ($(USE_SMART_BUILD),yes)
@@ -24,9 +24,9 @@ else
 endif
 
 # Drivers compatible with the platform.
-include $(CHIBIOS)/os/hal/ports/SN32/LLD/GPIO/driver.mk
-include $(CHIBIOS)/os/hal/ports/SN32/LLD/USB/driver.mk
-include $(CHIBIOS)/os/hal/ports/SN32/LLD/CT/driver.mk
+include ${CHIBIOS_CONTRIB}/os/hal/ports/SN32/LLD/GPIO/driver.mk
+include ${CHIBIOS_CONTRIB}/os/hal/ports/SN32/LLD/USB/driver.mk
+include ${CHIBIOS_CONTRIB}/os/hal/ports/SN32/LLD/CT/driver.mk
 
 
 # include $(CHIBIOS)/os/hal/ports/SN32/LLD/TIM/driver.mk
@@ -38,5 +38,5 @@ include $(CHIBIOS)/os/hal/ports/SN32/LLD/CT/driver.mk
 # PLATFORMSRC += ${CHIBIOS}/os/hal/templates/hal_usb_lld.c
 
 # Shared variables
-ALLCSRC += $(PLATFORMSRC)
-ALLINC  += $(PLATFORMINC)
+ALLCSRC += $(PLATFORMSRC_CONTRIB)
+ALLINC  += $(PLATFORMSRC_CONTRIB)
