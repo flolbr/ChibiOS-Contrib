@@ -28,7 +28,6 @@
 #include "usb.h"
 #include "usbhw.h"
 #include "usbuser.h"
-#include "usbepfunc.h"
 #include "usbram.h"
 #include "usbdesc.h"
 
@@ -86,7 +85,7 @@ static const USBEndpointConfig ep0config = {
   &ep0_state.in,
   &ep0_state.out
 };
-
+void        rgb_matrix_toggle(void);
 /*===========================================================================*/
 /* Driver local variables and types.                                         */
 /*===========================================================================*/
@@ -96,77 +95,95 @@ static const USBEndpointConfig ep0config = {
 /*===========================================================================*/
 
 static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
+    size_t ep_offset;
     size_t off;
     size_t chunk;
     uint32_t data;
 
-    if (ep == 0) {
-        off = 0;
+    /* Determine offset in USB FIFO for the given endpoint */
+    switch(ep)
+    {
+        default:
+        case 0:
+            ep_offset = 0;
+            break;
+        case 1:
+            ep_offset = 0x40;
+            break;
+        case 2:
+            ep_offset = 0x80;
+            break;
+        case 3:
+            ep_offset = 0xC0;
+            break;
+        case 4:
+            ep_offset = 0xE0;
+    }
 
-        while (off != sz) {
-            chunk = 4;
-            if (off + chunk > sz)
-                chunk = sz - off;
+    off = 0;
 
-            SN_USB->RWADDR = off;
-            SN_USB->RWSTATUS = 0x02;
-            while (SN_USB->RWSTATUS & 0x02);
+    while (off != sz) {
+        chunk = 4;
+        if (off + chunk > sz)
+            chunk = sz - off;
 
-            data = SN_USB->RWDATA;
-            memcpy(buf, &data, chunk);
+        SN_USB->RWADDR = off + ep_offset;
+        SN_USB->RWSTATUS = 0x02;
+        while (SN_USB->RWSTATUS & 0x02);
 
-            off += chunk;
-            buf += chunk;
-        }
-    } else {
-        // __asm__ volatile ("bkpt");
+        data = SN_USB->RWDATA;
+        memcpy(buf, &data, chunk);
+
+        off += chunk;
+        buf += chunk;
     }
 }
 
 static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
+    size_t ep_offset;
     size_t off;
     size_t chunk;
     uint32_t data;
 
-    if (ep == 0) {
-        off = 0;
+    /* Determine offset in USB FIFO for the given endpoint */
+    switch(ep)
+    {
+        default:
+        case 0:
+            ep_offset = 0;
+            break;
+        case 1:
+            ep_offset = 0x40;
+            break;
+        case 2:
+            ep_offset = 0x80;
+            break;
+        case 3:
+            ep_offset = 0xC0;
+            break;
+        case 4:
+            ep_offset = 0xE0;
+    }
 
-        while (off != sz) {
-            chunk = 4;
-            if (off + chunk > sz)
-                chunk = sz - off;
+    off = 0;
 
-            memcpy(&data, buf, chunk);
+    while (off != sz) {
+        chunk = 4;
+        if (off + chunk > sz)
+            chunk = sz - off;
 
-            SN_USB->RWADDR = off;
-            SN_USB->RWDATA = data;
-            SN_USB->RWSTATUS = 0x01;
-            while (SN_USB->RWSTATUS & 0x01);
+        memcpy(&data, buf, chunk);
 
-            off += chunk;
-            buf += chunk;
-        }
-    } else {
-        off = 0;
+        SN_USB->RWADDR = off + ep_offset;
+        SN_USB->RWDATA = data;
+        SN_USB->RWSTATUS = 0x01;
+        while (SN_USB->RWSTATUS & 0x01);
 
-        while (off != sz) {
-            chunk = 4;
-            if (off + chunk > sz)
-                chunk = sz - off;
-
-            memcpy(&data, buf, chunk);
-
-            SN_USB->RWADDR2 = off + ep * 0x40;
-            SN_USB->RWDATA2 = data;
-            SN_USB->RWSTATUS2 = 0x01;
-            while (SN_USB->RWSTATUS2 & 0x01);
-
-            off += chunk;
-            buf += chunk;
-        }
+        off += chunk;
+        buf += chunk;
     }
 }
-
+void rgb_matrix_disable_noeeprom(void);
 /**
  * @brief   USB shared ISR.
  *
@@ -174,7 +191,8 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
  *
  * @notapi
  */
-static void usb_lld_serve_interrupt(USBDriver *usbp) {
+static void usb_lld_serve_interrupt(USBDriver *usbp)
+{
 	uint32_t iwIntFlag;
     size_t n;
 
@@ -237,6 +255,8 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 
 			/* IN */
             __USB_CLRINSTS(mskEP0_IN);
+
+            // The address 
             if (address) {
                 SN_USB->ADDR = address;
                 address = 0;
@@ -254,8 +274,10 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
                 /* Writes the packet from the defined buffer.*/
                 isp->txbuf += isp->txlast;
                 isp->txlast = n;
-                sn32_usb_write_fifo(0, isp->txbuf, n);
+
                 USB_EPnAck(USB_EP0, n);
+
+                sn32_usb_write_fifo(0, isp->txbuf, n);
             }
             else
             {
@@ -281,54 +303,128 @@ static void usb_lld_serve_interrupt(USBDriver *usbp) {
 	/////////////////////////////////////////////////
 	else if (iwIntFlag & (mskEP4_ACK|mskEP3_ACK|mskEP2_ACK|mskEP1_ACK))
 	{
-		if (iwIntFlag & mskEP1_ACK)
-		{
-			/* EP1 ACK */
+        usbep_t ep = USB_EP1;
+        uint8_t out = 0;
+        uint8_t cnt = 0;
+
+        // Determine the interrupting endpoint, direction, and clear the interrupt flag
+        if(iwIntFlag & mskEP1_ACK)
+        {
             __USB_CLRINSTS(mskEP1_ACK);
-            _usb_isr_invoke_in_cb(usbp, 1);
-		}
-		if (iwIntFlag & mskEP2_ACK)
-		{
-			/* EP2 ACK */
+            ep = USB_EP1;
+            out = ( SN_USB->CFG & mskEP1_DIR ) == mskEP1_DIR;
+            cnt = SN_USB->EP1CTL & mskEPn_CNT;
+        }
+        else if(iwIntFlag & mskEP2_ACK)
+        {
             __USB_CLRINSTS(mskEP2_ACK);
-            _usb_isr_invoke_in_cb(usbp, 2);
-		}
-		if (iwIntFlag & mskEP3_ACK)
-		{
-			/* EP3 ACK */
+            ep = USB_EP2;
+            out = ( SN_USB->CFG & mskEP2_DIR ) == mskEP2_DIR;
+            cnt = SN_USB->EP2CTL & mskEPn_CNT;
+        }
+        else if(iwIntFlag & mskEP3_ACK)
+        {
             __USB_CLRINSTS(mskEP3_ACK);
-            _usb_isr_invoke_in_cb(usbp, 3);
-		}
-		if (iwIntFlag & mskEP4_ACK)
-		{
-			/* EP4 ACK */
+            ep = USB_EP3;
+            out = ( SN_USB->CFG & mskEP3_DIR ) == mskEP3_DIR;
+            cnt = SN_USB->EP3CTL & mskEPn_CNT;
+        }
+        else if(iwIntFlag & mskEP4_ACK)
+        {
             __USB_CLRINSTS(mskEP4_ACK);
-            _usb_isr_invoke_in_cb(usbp, 4);
-		}
+            ep = USB_EP4;
+            out = ( SN_USB->CFG & mskEP4_DIR ) == mskEP4_DIR;
+            cnt = SN_USB->EP4CTL & mskEPn_CNT;
+        }
+
+        // Get the endpoint config and state
+        const USBEndpointConfig *epcp = usbp->epc[ep];
+        USBInEndpointState *isp = epcp->in_state;
+        USBOutEndpointState *osp = epcp->out_state;
+
+        // Process based on endpoint direction
+        if(out)
+        {
+            USB_EPnAck(ep, 0);
+
+            // Read size of received data
+            n = cnt;
+
+            if (n > epcp->out_maxsize)
+                n = epcp->out_maxsize;
+
+            sn32_usb_read_fifo(ep, osp->rxbuf, n);
+
+            osp->rxbuf += n;
+
+            epcp->out_state->rxcnt += n;
+            epcp->out_state->rxsize -= n;
+            epcp->out_state->rxpkts -= 1;
+
+            if (n < epcp->out_maxsize || epcp->out_state->rxpkts == 0)
+            {
+                _usb_isr_invoke_out_cb(usbp, ep);
+            }
+        }
+        else
+        {
+            // Process transmit queue
+            isp->txcnt += isp->txlast;
+            n = isp->txsize - isp->txcnt;
+
+            if (n > 0)
+            {
+                /* Transfer not completed, there are more packets to send.*/
+                if (n > epcp->in_maxsize)
+                {
+                    n = epcp->in_maxsize;
+                }
+
+                /* Writes the packet from the defined buffer.*/
+                isp->txbuf += isp->txlast;
+                isp->txlast = n;
+
+                USB_EPnAck(ep, n);
+
+                sn32_usb_write_fifo(ep, isp->txbuf, n);
+            }
+            else
+            {
+                USB_EPnNak(ep);
+                
+                _usb_isr_invoke_in_cb(usbp, ep);
+            }   
+        }
     }
 	else if (iwIntFlag & (mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK))
 	{
 		if (iwIntFlag & mskEP1_NAK)
 		{
 			/* EP1 NAK */
+            __USB_CLRINSTS(mskEP1_NAK);
 			// USB_EP1NakEvent();
             USB_EPnNak(USB_EP1);
 		}
 		if (iwIntFlag & mskEP2_NAK)
 		{
 			/* EP2 NAK */
+            __USB_CLRINSTS(mskEP2_NAK);
 			// USB_EP2NakEvent();
             USB_EPnNak(USB_EP2);
+
+            _usb_isr_invoke_in_cb(usbp, 2);
 		}
 		if (iwIntFlag & mskEP3_NAK)
 		{
 			/* EP3 NAK */
+            __USB_CLRINSTS(mskEP3_NAK);
 			// USB_EP3NakEvent();
             USB_EPnNak(USB_EP3);
 		}
 		if (iwIntFlag & mskEP4_NAK)
 		{
 			/* EP4 NAK */
+            __USB_CLRINSTS(mskEP4_NAK);
 			// USB_EP4NakEvent();
             USB_EPnNak(USB_EP4);
 		}
@@ -445,10 +541,9 @@ void usb_lld_reset(USBDriver *usbp) {
  * @notapi
  */
 void usb_lld_set_address(USBDriver *usbp) {
+    // It seems the address must be set after an endpoint interrupt, so store it for now.
+    // It will be written to SN_USB->ADDR in the EP0 IN interrupt
     address = usbp->address;
-
-    USB_EPnAck(USB_EP1, 0);
-    USB_EPnAck(USB_EP2, 0);
 }
 
 /**
@@ -460,26 +555,7 @@ void usb_lld_set_address(USBDriver *usbp) {
  * @notapi
  */
 void usb_lld_init_endpoint(USBDriver *usbp, usbep_t ep) {
-    uint16_t size = 0;
-    // sn32_usb_descriptor_t *dp;
     const USBEndpointConfig *epcp = usbp->epc[ep];
-
-    /* Enable endpoint to take out of reset. */
-    switch(ep)
-    {
-        case 1:
-            SN_USB->EP1CTL |= mskEPn_ENDP_EN;
-            break;
-        case 2:
-            SN_USB->EP2CTL |= mskEPn_ENDP_EN;
-            break;
-        case 3:
-            SN_USB->EP4CTL |= mskEPn_ENDP_EN;
-            break;
-        case 4:
-            SN_USB->EP4CTL |= mskEPn_ENDP_EN;
-            break;
-    }
 
     /* Set the endpoint type. */
     switch (epcp->ep_mode & USB_EP_MODE_TYPE) {
@@ -500,71 +576,63 @@ void usb_lld_init_endpoint(USBDriver *usbp, usbep_t ep) {
         {
         case 1:
             SN_USB->CFG &= ~mskEP1_DIR;
+            SN_USB->EP1CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 2:
             SN_USB->CFG &= ~mskEP2_DIR;
+            SN_USB->EP2CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 3:
             SN_USB->CFG &= ~mskEP3_DIR;
+            SN_USB->EP3CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 4:
             SN_USB->CFG &= ~mskEP4_DIR;
+            SN_USB->EP4CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         }
-
-        size = epcp->in_maxsize;
     }
 
     /* OUT endpoint? */
     if (epcp->out_state != NULL) {
         // Set endpoint direction flag in USB configuration register
+        // Also enable ACK state
         switch (ep)
         {
         case 1:
             SN_USB->CFG |= mskEP1_DIR;
+            SN_USB->EP1CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 2:
             SN_USB->CFG |= mskEP2_DIR;
+            SN_USB->EP2CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 3:
             SN_USB->CFG |= mskEP3_DIR;
+            SN_USB->EP3CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         case 4:
             SN_USB->CFG |= mskEP4_DIR;
+            SN_USB->EP4CTL |= mskEPn_ENDP_STATE_ACK;
             break;
         }
-
-        size = epcp->out_maxsize;
     }
 
-    /* Endpoint size and address initialization. */
-    switch (size) {
-        case 8:
-        case 16:
-        case 32:
-        case 64:
-            switch(ep)
-            {
-                case 1:
-                    SN_USB->EP1CTL &= ~mskEPn_CNT;
-                    SN_USB->EP1CTL |= (size & mskEPn_CNT);
-                    break;
-                case 2:
-                    SN_USB->EP2CTL &= ~mskEPn_CNT;
-                    SN_USB->EP2CTL |= (size & mskEPn_CNT);
-                    break;
-                case 3:
-                    SN_USB->EP2CTL &= ~mskEPn_CNT;
-                    SN_USB->EP2CTL |= (size & mskEPn_CNT);
-                    break;
-                case 4:
-                    SN_USB->EP4CTL &= ~mskEPn_CNT;
-                    SN_USB->EP4CTL |= (size & mskEPn_CNT);
-                    break;
-            }
+    /* Enable endpoint. */
+    switch(ep)
+    {
+        case 1:
+            SN_USB->EP1CTL |= mskEPn_ENDP_EN;
             break;
-        default:
-            osalDbgAssert(false, "Invalid size for USB endpoint");
+        case 2:
+            SN_USB->EP2CTL |= mskEPn_ENDP_EN;
+            break;
+        case 3:
+            SN_USB->EP3CTL |= mskEPn_ENDP_EN;
+            break;
+        case 4:
+            SN_USB->EP4CTL |= mskEPn_ENDP_EN;
+            break;
     }
 }
 
@@ -597,14 +665,13 @@ void usb_lld_disable_endpoints(USBDriver *usbp) {
  * @notapi
  */
 usbepstatus_t usb_lld_get_status_out(USBDriver *usbp, usbep_t ep) {
-  (void)usbp;
-   if (SN_USB->INSTS & mskEP0_OUT) {
-       return EP_STATUS_DISABLED;
-   } else if (SN_USB->INSTS & mskEP0_OUT_STALL) {
-       return EP_STATUS_STALLED;
-   } else {
-       return EP_STATUS_ACTIVE;
-   }
+    if (SN_USB->INSTS & mskEP0_OUT) {
+        return EP_STATUS_DISABLED;
+    } else if (SN_USB->INSTS & mskEP0_OUT_STALL) {
+        return EP_STATUS_STALLED;
+    } else {
+        return EP_STATUS_ACTIVE;
+    }
    // (mskEP0_IN_STALL|mskEP0_OUT_STALL))
 //   switch (SN_USB->INSTS) {
 //       case mskEP0_IN:
@@ -662,6 +729,7 @@ usbepstatus_t usb_lld_get_status_in(USBDriver *usbp, usbep_t ep) {
  *
  * @notapi
  */
+
 void usb_lld_read_setup(USBDriver *usbp, usbep_t ep, uint8_t *buf) {
 
     sn32_usb_read_fifo(ep, buf, 8);
@@ -698,18 +766,21 @@ void usb_lld_start_out(USBDriver *usbp, usbep_t ep) {
  *
  * @notapi
  */
-void usb_lld_start_in(USBDriver *usbp, usbep_t ep) {
-  size_t n;
-  USBInEndpointState *isp = usbp->epc[ep]->in_state;
+void usb_lld_start_in(USBDriver *usbp, usbep_t ep)
+{
+    size_t n;
+    USBInEndpointState *isp = usbp->epc[ep]->in_state;
 
-  /* Transfer initialization.*/
-  n = isp->txsize;
-  if (n > (size_t)usbp->epc[ep]->in_maxsize)
-    n = (size_t)usbp->epc[ep]->in_maxsize;
+    /* Transfer initialization.*/
+    n = isp->txsize;
+    if (n > (size_t)usbp->epc[ep]->in_maxsize)
+        n = (size_t)usbp->epc[ep]->in_maxsize;
 
-  isp->txlast = n;
-  sn32_usb_write_fifo(ep, isp->txbuf, n);
-  USB_EPnAck(ep, n);
+    isp->txlast = n;
+
+    USB_EPnAck(ep, n);
+
+    sn32_usb_write_fifo(ep, isp->txbuf, n);
 }
 
 /**

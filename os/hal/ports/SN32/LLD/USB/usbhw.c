@@ -15,7 +15,6 @@
 #include	"usbhw.h"
 #include	"usbuser.h"
 #include	"usbdesc.h"
-#include	"hiduser.h"
 
 /*****************************************************************************
 * Description	:Setting USB for different Power domain
@@ -44,7 +43,7 @@ void USB_Init	(void)
 	volatile uint32_t	*pRam;
 	uint32_t 	wTmp;
 	USB_StandardVar_Init();
-	USB_HidVar_Init();
+	//USB_HidVar_Init();
 
 	/* Initialize clock and Enable USB PHY. */
 	SystemInit();
@@ -74,21 +73,11 @@ void USB_Init	(void)
 
 	/* Enable the USB Interrupt */
 	SN_USB->INTEN = (mskBUS_IE|mskUSB_IE|mskEPnACK_EN|mskBUSWK_IE);
-	#if	(EP1_NAK_IE == ENABLE)
 	SN_USB->INTEN |= mskEP1_NAK_EN;
-	#endif
-	#if	(EP2_NAK_IE == ENABLE)
 	SN_USB->INTEN |= mskEP2_NAK_EN;
-	#endif
-	#if	(EP3_NAK_IE == ENABLE)
 	SN_USB->INTEN |= mskEP3_NAK_EN;
-	#endif
-	#if	(EP4_NAK_IE == ENABLE)
 	SN_USB->INTEN |= mskEP4_NAK_EN;
-	#endif
-	#if	(SOF_IE == ENABLE)
 	SN_USB->INTEN |= mskUSB_SOF_IE;
-	#endif
 
 	NVIC_ClearPendingIRQ(USB_IRQn);
 	NVIC_EnableIRQ(USB_IRQn);
@@ -420,183 +409,183 @@ void USB_IRQHandler (void)
 }
 
 
-/*****************************************************************************
-* Function		: USB_Suspend
-* Description	: USB Suspend state SYS_CLK is runing slow mode.
-* Input				: None
-* Output			: None
-* Return			: None
-* Note				: None
-*****************************************************************************/
-void USB_Suspend (void)
-{
-	uint32_t	i;
+// /*****************************************************************************
+// * Function		: USB_Suspend
+// * Description	: USB Suspend state SYS_CLK is runing slow mode.
+// * Input				: None
+// * Output			: None
+// * Return			: None
+// * Note				: None
+// *****************************************************************************/
+// void USB_Suspend (void)
+// {
+// 	uint32_t	i;
 
-	#define SuspendMode Sleep
-	#define Slow	1
-	#define Sleep	2
+// 	#define SuspendMode Sleep
+// 	#define Slow	1
+// 	#define Sleep	2
 
-	#if (SuspendMode == Slow)
-		#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
-		uint32_t	wWakeupStatus0;
-		#endif
-		#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
-		uint32_t	wWakeupStatus1;
-		#endif
-		#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
-		uint32_t	wWakeupStatus2;
-		#endif
-		#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
-		uint32_t	wWakeupStatus3;
-		#endif
-	#endif
+// 	#if (SuspendMode == Slow)
+// 		#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
+// 		uint32_t	wWakeupStatus0;
+// 		#endif
+// 		#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
+// 		uint32_t	wWakeupStatus1;
+// 		#endif
+// 		#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
+// 		uint32_t	wWakeupStatus2;
+// 		#endif
+// 		#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
+// 		uint32_t	wWakeupStatus3;
+// 		#endif
+// 	#endif
 
-	//** Clear BusSuspend
-	sUSB_EumeData.wUSB_Status &= ~mskBUSSUSPEND;
+// 	//** Clear BusSuspend
+// 	sUSB_EumeData.wUSB_Status &= ~mskBUSSUSPEND;
 
-	if(bNDT_Flag == 1)				// Check NDT status
-	{
-		return;
-	}
+// 	if(bNDT_Flag == 1)				// Check NDT status
+// 	{
+// 		return;
+// 	}
 
-	for(i=0; i < 620000; i++ )
-	{
-		SN_WDT->FEED = 0x5AFA55AA;
-		if(!(SN_USB->INSTS & mskBUS_SUSPEND))				// double check Suspend flag
-		{
-			return;
-		}
-	}
+// 	for(i=0; i < 620000; i++ )
+// 	{
+// 		SN_WDT->FEED = 0x5AFA55AA;
+// 		if(!(SN_USB->INSTS & mskBUS_SUSPEND))				// double check Suspend flag
+// 		{
+// 			return;
+// 		}
+// 	}
 
-	//** double check Suspend flag for EMC protect
-	if(!(SN_USB->INSTS & mskBUS_SUSPEND))
-	{
-		return;
-	}
+// 	//** double check Suspend flag for EMC protect
+// 	if(!(SN_USB->INSTS & mskBUS_SUSPEND))
+// 	{
+// 		return;
+// 	}
 
-	//** Disable ESD_EN & PHY_EN
-	__USB_PHY_DISABLE;
+// 	//** Disable ESD_EN & PHY_EN
+// 	__USB_PHY_DISABLE;
 
-	//** If system support remote wakeup, setting Remote wakeup GPIOs
-	if (sUSB_EumeData.wUSB_Status & mskREMOTE_WAKEUP)
-	{
-		//** Sleep mode setting
-		#if (SuspendMode == Sleep)
-		Remote_Wakeup_Setting();
-		//** Slow mode setting
-		#elif (SuspendMode == Slow)
-			#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
-			SN_GPIO0->CFG = 0;  	//** P0 Input mode Pull up
-			SN_GPIO0->MODE &= (~REMOTE_WAKEUP_IO_P0_BIT);
-			UT_MAIN_DelayNx10us(10);
-			wWakeupStatus0 = SN_GPIO0->DATA & REMOTE_WAKEUP_IO_P0_BIT;	//** Record P0 wakeup pin
-			#endif
-			#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
-			SN_GPIO1->CFG = 0;  	//** P1 Input mode Pull up
-			SN_GPIO1->MODE &= (~REMOTE_WAKEUP_IO_P1_BIT);
-			UT_MAIN_DelayNx10us(10);
-			wWakeupStatus1 = SN_GPIO1->DATA & REMOTE_WAKEUP_IO_P1_BIT;	//** Record P1 wakeup pin
-			#endif
-			#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
-			SN_GPIO2->CFG = 0;  	//** P2 Input mode Pull up
-			SN_GPIO2->MODE &= (~REMOTE_WAKEUP_IO_P2_BIT);
-			UT_MAIN_DelayNx10us(10);
-			wWakeupStatus2 = SN_GPIO2->DATA & REMOTE_WAKEUP_IO_P2_BIT;	//** Record P2 wakeup pin
-			#endif
-			#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
-			SN_GPIO3->CFG = 0;  	//** P3 Input mode Pull up
-			SN_GPIO3->MODE &= (~REMOTE_WAKEUP_IO_P3_BIT);
-			UT_MAIN_DelayNx10us(10);
-			wWakeupStatus3 = SN_GPIO3->DATA & REMOTE_WAKEUP_IO_P3_BIT;	//** Record P3 wakeup pin
-			#endif
-		#endif
-	}
+// 	//** If system support remote wakeup, setting Remote wakeup GPIOs
+// 	if (sUSB_EumeData.wUSB_Status & mskREMOTE_WAKEUP)
+// 	{
+// 		//** Sleep mode setting
+// 		#if (SuspendMode == Sleep)
+// 		Remote_Wakeup_Setting();
+// 		//** Slow mode setting
+// 		#elif (SuspendMode == Slow)
+// 			#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
+// 			SN_GPIO0->CFG = 0;  	//** P0 Input mode Pull up
+// 			SN_GPIO0->MODE &= (~REMOTE_WAKEUP_IO_P0_BIT);
+// 			UT_MAIN_DelayNx10us(10);
+// 			wWakeupStatus0 = SN_GPIO0->DATA & REMOTE_WAKEUP_IO_P0_BIT;	//** Record P0 wakeup pin
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
+// 			SN_GPIO1->CFG = 0;  	//** P1 Input mode Pull up
+// 			SN_GPIO1->MODE &= (~REMOTE_WAKEUP_IO_P1_BIT);
+// 			UT_MAIN_DelayNx10us(10);
+// 			wWakeupStatus1 = SN_GPIO1->DATA & REMOTE_WAKEUP_IO_P1_BIT;	//** Record P1 wakeup pin
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
+// 			SN_GPIO2->CFG = 0;  	//** P2 Input mode Pull up
+// 			SN_GPIO2->MODE &= (~REMOTE_WAKEUP_IO_P2_BIT);
+// 			UT_MAIN_DelayNx10us(10);
+// 			wWakeupStatus2 = SN_GPIO2->DATA & REMOTE_WAKEUP_IO_P2_BIT;	//** Record P2 wakeup pin
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
+// 			SN_GPIO3->CFG = 0;  	//** P3 Input mode Pull up
+// 			SN_GPIO3->MODE &= (~REMOTE_WAKEUP_IO_P3_BIT);
+// 			UT_MAIN_DelayNx10us(10);
+// 			wWakeupStatus3 = SN_GPIO3->DATA & REMOTE_WAKEUP_IO_P3_BIT;	//** Record P3 wakeup pin
+// 			#endif
+// 		#endif
+// 	}
 
-	//** Delay for waitting IO stable, then go into sleep mode
-	// UT_MAIN_DelayNx10us(10);
-    // chThdSleepMilliseconds(10);
+// 	//** Delay for waitting IO stable, then go into sleep mode
+// 	// UT_MAIN_DelayNx10us(10);
+//     // chThdSleepMilliseconds(10);
 
-	//** System switch into Slow mode(ILRC)
-	USB_SwitchtoSlow();
+// 	//** System switch into Slow mode(ILRC)
+// 	USB_SwitchtoSlow();
 
-	// double check Suspend flag for EMC protect
-	if(!(SN_USB->INSTS & mskBUS_SUSPEND))
-	{
-		USB_ReturntoNormal();
-		return;
-	}
+// 	// double check Suspend flag for EMC protect
+// 	if(!(SN_USB->INSTS & mskBUS_SUSPEND))
+// 	{
+// 		USB_ReturntoNormal();
+// 		return;
+// 	}
 
-	#if (SuspendMode == Sleep)
-	//** Into Sleep mode, for saving power consumption in suspend (<500uA)
-	SN_PMU->CTRL = 0x04;
-	__WFI();
+// 	#if (SuspendMode == Sleep)
+// 	//** Into Sleep mode, for saving power consumption in suspend (<500uA)
+// 	SN_PMU->CTRL = 0x04;
+// 	__WFI();
 
-	//** system wakeup from sleep mode, system clock(ILRC) switch into IHRC
-	USB_ReturntoNormal();
-	if ((sUSB_EumeData.wUSB_Status & (mskREMOTE_WAKEUP | mskREMOTE_WAKEUP_ACT)) == (mskREMOTE_WAKEUP | mskREMOTE_WAKEUP_ACT) )
-	{
-		sUSB_EumeData.wUSB_Status &= ~mskREMOTE_WAKEUP_ACT;
-		if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
-		{
-			USB_RemoteWakeUp();
-			return;
-		}
-	}
-	#elif (SuspendMode == Slow)
-	//** ILRC mode
-	while (SN_USB->INSTS & mskBUS_SUSPEND)
-	{
-		if (sUSB_EumeData.wUSB_Status & mskREMOTE_WAKEUP)
-		{
-			#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
-			if ((SN_GPIO0->DATA & REMOTE_WAKEUP_IO_P0_BIT) != wWakeupStatus0)
-			{
-				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
-				{
-					USB_ReturntoNormal();
-					USB_RemoteWakeUp();
-					return;
-				}
-			}
-			#endif
-			#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
-			if ((SN_GPIO1->DATA & REMOTE_WAKEUP_IO_P1_BIT) != wWakeupStatus1)
-			{
-				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
-				{
-					USB_ReturntoNormal();
-					USB_RemoteWakeUp();
-					return;
-				}
-			}
-			#endif
-			#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
-			if ((SN_GPIO2->DATA & REMOTE_WAKEUP_IO_P2_BIT) != wWakeupStatus2)
-			{
-				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
-				{
-					USB_ReturntoNormal();
-					USB_RemoteWakeUp();
-					return;
-				}
-			}
-			#endif
-			#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
-			if ((SN_GPIO3->DATA & REMOTE_WAKEUP_IO_P3_BIT) != wWakeupStatus3)
-			{
-				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
-				{
-					USB_ReturntoNormal();
-					USB_RemoteWakeUp();
-					return;
-				}
-			}
-			#endif
-		}
-	}
-	#endif
-	USB_ReturntoNormal();
-}
+// 	//** system wakeup from sleep mode, system clock(ILRC) switch into IHRC
+// 	USB_ReturntoNormal();
+// 	if ((sUSB_EumeData.wUSB_Status & (mskREMOTE_WAKEUP | mskREMOTE_WAKEUP_ACT)) == (mskREMOTE_WAKEUP | mskREMOTE_WAKEUP_ACT) )
+// 	{
+// 		sUSB_EumeData.wUSB_Status &= ~mskREMOTE_WAKEUP_ACT;
+// 		if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
+// 		{
+// 			USB_RemoteWakeUp();
+// 			return;
+// 		}
+// 	}
+// 	#elif (SuspendMode == Slow)
+// 	//** ILRC mode
+// 	while (SN_USB->INSTS & mskBUS_SUSPEND)
+// 	{
+// 		if (sUSB_EumeData.wUSB_Status & mskREMOTE_WAKEUP)
+// 		{
+// 			#if (REMOTE_WAKEUP_IO_P0 == ENABLE)
+// 			if ((SN_GPIO0->DATA & REMOTE_WAKEUP_IO_P0_BIT) != wWakeupStatus0)
+// 			{
+// 				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
+// 				{
+// 					USB_ReturntoNormal();
+// 					USB_RemoteWakeUp();
+// 					return;
+// 				}
+// 			}
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P1 == ENABLE)
+// 			if ((SN_GPIO1->DATA & REMOTE_WAKEUP_IO_P1_BIT) != wWakeupStatus1)
+// 			{
+// 				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
+// 				{
+// 					USB_ReturntoNormal();
+// 					USB_RemoteWakeUp();
+// 					return;
+// 				}
+// 			}
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P2 == ENABLE)
+// 			if ((SN_GPIO2->DATA & REMOTE_WAKEUP_IO_P2_BIT) != wWakeupStatus2)
+// 			{
+// 				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
+// 				{
+// 					USB_ReturntoNormal();
+// 					USB_RemoteWakeUp();
+// 					return;
+// 				}
+// 			}
+// 			#endif
+// 			#if (REMOTE_WAKEUP_IO_P3 == ENABLE)
+// 			if ((SN_GPIO3->DATA & REMOTE_WAKEUP_IO_P3_BIT) != wWakeupStatus3)
+// 			{
+// 				if (sUSB_EumeData.wUSB_SetConfiguration == USB_CONFIG_VALUE)
+// 				{
+// 					USB_ReturntoNormal();
+// 					USB_RemoteWakeUp();
+// 					return;
+// 				}
+// 			}
+// 			#endif
+// 		}
+// 	}
+// 	#endif
+// 	USB_ReturntoNormal();
+// }
 
 
 /*****************************************************************************
@@ -1057,46 +1046,46 @@ void USB_ReturntoNormal	(void)
 }
 
 
-/*****************************************************************************
-* Function		: USB_SwitchtoSlow
-* Description	: System switch into ILRC, and wait for stable
-* Input				: None
-* Output			: None
-* Return			: None
-* Note				: None
-*****************************************************************************/
-void USB_SwitchtoSlow	(void)
-{
-	SN_USB->INTEN = 0;
+// /*****************************************************************************
+// * Function		: USB_SwitchtoSlow
+// * Description	: System switch into ILRC, and wait for stable
+// * Input				: None
+// * Output			: None
+// * Return			: None
+// * Note				: None
+// *****************************************************************************/
+// void USB_SwitchtoSlow	(void)
+// {
+// 	SN_USB->INTEN = 0;
 
-	//** switch ILRC
-	SN_SYS0->CLKCFG = 0x01;
-	//** check ILRC status
-	while((SN_SYS0->CLKCFG & 0x10) != 0x10);
-	//** switch SYSCLK / 4		DO NOT set SYSCLK / 1 or SYSCLK / 2!!!!
-	SN_SYS0->AHBCP = 2;
-	#if (SuspendMode == Slow)
-	//** Setting Flash mode to slow mode
-	SN_FLASH->LPCTRL = 0x5AFA0002;
-	#endif
-	//** disable IHRC
-	SN_SYS0->ANBCTRL = 0;
+// 	//** switch ILRC
+// 	SN_SYS0->CLKCFG = 0x01;
+// 	//** check ILRC status
+// 	while((SN_SYS0->CLKCFG & 0x10) != 0x10);
+// 	//** switch SYSCLK / 4		DO NOT set SYSCLK / 1 or SYSCLK / 2!!!!
+// 	SN_SYS0->AHBCP = 2;
+// 	#if (SuspendMode == Slow)
+// 	//** Setting Flash mode to slow mode
+// 	SN_FLASH->LPCTRL = 0x5AFA0002;
+// 	#endif
+// 	//** disable IHRC
+// 	SN_SYS0->ANBCTRL = 0;
 
-	SN_USB->INTEN = (mskBUS_IE|mskUSB_IE|mskEPnACK_EN|mskBUSWK_IE);
-	#if	(EP1_NAK_IE == ENABLE)
-	SN_USB->INTEN |= mskEP1_NAK_EN;
-	#endif
-	#if	(EP2_NAK_IE == ENABLE)
-	SN_USB->INTEN |= mskEP2_NAK_EN;
-	#endif
-	#if	(EP3_NAK_IE == ENABLE)
-	SN_USB->INTEN |= mskEP3_NAK_EN;
-	#endif
-	#if	(EP4_NAK_IE == ENABLE)
-	SN_USB->INTEN |= mskEP4_NAK_EN;
-	#endif
-	#if	(SOF_IE == ENABLE)
-	SN_USB->INTEN |= mskUSB_SOF_IE;
-	#endif
-}
+// 	SN_USB->INTEN = (mskBUS_IE|mskUSB_IE|mskEPnACK_EN|mskBUSWK_IE);
+// 	#if	(EP1_NAK_IE == ENABLE)
+// 	SN_USB->INTEN |= mskEP1_NAK_EN;
+// 	#endif
+// 	#if	(EP2_NAK_IE == ENABLE)
+// 	SN_USB->INTEN |= mskEP2_NAK_EN;
+// 	#endif
+// 	#if	(EP3_NAK_IE == ENABLE)
+// 	SN_USB->INTEN |= mskEP3_NAK_EN;
+// 	#endif
+// 	#if	(EP4_NAK_IE == ENABLE)
+// 	SN_USB->INTEN |= mskEP4_NAK_EN;
+// 	#endif
+// 	#if	(SOF_IE == ENABLE)
+// 	SN_USB->INTEN |= mskUSB_SOF_IE;
+// 	#endif
+// }
 
