@@ -94,7 +94,7 @@ void        rgb_matrix_toggle(void);
 /* Driver local functions.                                                   */
 /*===========================================================================*/
 
-static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
+static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz, bool intr) {
     size_t ep_offset;
     size_t off;
     size_t chunk;
@@ -127,11 +127,23 @@ static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
         if (off + chunk > sz)
             chunk = sz - off;
 
-        SN_USB->RWADDR = off + ep_offset;
-        SN_USB->RWSTATUS = 0x02;
-        while (SN_USB->RWSTATUS & 0x02);
+        if(intr)
+        {
+            SN_USB->RWADDR = off + ep_offset;
+            SN_USB->RWSTATUS = 0x02;
+            while (SN_USB->RWSTATUS & 0x02);
 
-        data = SN_USB->RWDATA;
+            data = SN_USB->RWDATA;
+        }
+        else
+        {
+            SN_USB->RWADDR2 = off + ep_offset;
+            SN_USB->RWSTATUS2 = 0x02;
+            while (SN_USB->RWSTATUS2 & 0x02);
+
+            data = SN_USB->RWDATA2;
+        }
+        
         memcpy(buf, &data, chunk);
 
         off += chunk;
@@ -139,7 +151,7 @@ static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz) {
     }
 }
 
-static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
+static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz, bool intr) {
     size_t ep_offset;
     size_t off;
     size_t chunk;
@@ -174,10 +186,21 @@ static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz) {
 
         memcpy(&data, buf, chunk);
 
-        SN_USB->RWADDR = off + ep_offset;
-        SN_USB->RWDATA = data;
-        SN_USB->RWSTATUS = 0x01;
-        while (SN_USB->RWSTATUS & 0x01);
+        if(intr)
+        {
+            SN_USB->RWADDR = off + ep_offset;
+            SN_USB->RWDATA = data;
+            SN_USB->RWSTATUS = 0x01;
+            while (SN_USB->RWSTATUS & 0x01);
+        }
+        else
+        {
+            SN_USB->RWADDR2 = off + ep_offset;
+            SN_USB->RWDATA2 = data;
+            SN_USB->RWSTATUS2 = 0x01;
+            while (SN_USB->RWSTATUS2 & 0x01);
+        }
+        
 
         off += chunk;
         buf += chunk;
@@ -262,7 +285,6 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
                 address = 0;
                 USB_EPnStall(USB_EP0);
             }
-            USB_EPnAck(USB_EP0,0);
 
             isp->txcnt += isp->txlast;
             n = isp->txsize - isp->txcnt;
@@ -277,10 +299,12 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
 
                 USB_EPnAck(USB_EP0, n);
 
-                sn32_usb_write_fifo(0, isp->txbuf, n);
+                sn32_usb_write_fifo(0, isp->txbuf, n, true);
             }
             else
             {
+                USB_EPnAck(USB_EP0,0);
+                
                 _usb_isr_invoke_in_cb(usbp, 0);
             }
             
@@ -353,7 +377,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
             if (n > epcp->out_maxsize)
                 n = epcp->out_maxsize;
 
-            sn32_usb_read_fifo(ep, osp->rxbuf, n);
+            sn32_usb_read_fifo(ep, osp->rxbuf, n, true);
 
             osp->rxbuf += n;
 
@@ -386,7 +410,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
 
                 USB_EPnAck(ep, n);
 
-                sn32_usb_write_fifo(ep, isp->txbuf, n);
+                sn32_usb_write_fifo(ep, isp->txbuf, n, true);
             }
             else
             {
@@ -419,7 +443,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
 			/* EP3 NAK */
             __USB_CLRINSTS(mskEP3_NAK);
 			// USB_EP3NakEvent();
-            USB_EPnNak(USB_EP3);
+            USB_EPnAck(USB_EP3, 0);
 		}
 		if (iwIntFlag & mskEP4_NAK)
 		{
@@ -732,7 +756,7 @@ usbepstatus_t usb_lld_get_status_in(USBDriver *usbp, usbep_t ep) {
 
 void usb_lld_read_setup(USBDriver *usbp, usbep_t ep, uint8_t *buf) {
 
-    sn32_usb_read_fifo(ep, buf, 8);
+    sn32_usb_read_fifo(ep, buf, 8, false);
 }
 
 /**
@@ -780,7 +804,7 @@ void usb_lld_start_in(USBDriver *usbp, usbep_t ep)
 
     USB_EPnAck(ep, n);
 
-    sn32_usb_write_fifo(ep, isp->txbuf, n);
+    sn32_usb_write_fifo(ep, isp->txbuf, n, false);
 }
 
 /**

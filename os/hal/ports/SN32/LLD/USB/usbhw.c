@@ -100,21 +100,6 @@ void USB_Init	(void)
 			wTmp = (mskVREG33_DIS|mskPHY_EN|mskDPPU_EN|mskSIE_EN|mskESD_EN);
 	#endif
 
-	/*	setting EP1~EP4 Direction	*/
-	//** USB_EPn_DIRECTION: IN = 1; OUT = 0
-	#if (USB_EP1_DIRECTION == USB_DIRECTION_OUT)
-		wTmp |= mskEP1_DIR;
-	#endif
-	#if (USB_EP2_DIRECTION == USB_DIRECTION_OUT)
-		wTmp |= mskEP2_DIR;
-	#endif
-	#if (USB_EP3_DIRECTION == USB_DIRECTION_OUT)
-		wTmp |= mskEP3_DIR;
-	#endif
-	#if (USB_EP4_DIRECTION == USB_DIRECTION_OUT)
-		wTmp |= mskEP4_DIR;
-	#endif
-
 	//** Delay for the connection between Device and Host
 	// UT_MAIN_DelayNms(50);
     // chThdSleepMilliseconds(50);
