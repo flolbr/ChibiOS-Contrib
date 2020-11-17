@@ -422,36 +422,51 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
     }
 	else if (iwIntFlag & (mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK))
 	{
+        usbep_t ep = USB_EP1;
+        uint8_t out = 0;
+        //uint8_t cnt = 0;
+
+        // Determine the interrupting endpoint, direction, and clear the interrupt flag
 		if (iwIntFlag & mskEP1_NAK)
 		{
-			/* EP1 NAK */
             __USB_CLRINSTS(mskEP1_NAK);
-			// USB_EP1NakEvent();
-            USB_EPnNak(USB_EP1);
+            ep = USB_EP1;
+            out = ( SN_USB->CFG & mskEP1_DIR ) == mskEP1_DIR;
+            //cnt = SN_USB->EP1CTL & mskEPn_CNT;
 		}
 		if (iwIntFlag & mskEP2_NAK)
 		{
-			/* EP2 NAK */
             __USB_CLRINSTS(mskEP2_NAK);
-			// USB_EP2NakEvent();
-            USB_EPnNak(USB_EP2);
-
-            _usb_isr_invoke_in_cb(usbp, 2);
+            ep = USB_EP2;
+            out = ( SN_USB->CFG & mskEP2_DIR ) == mskEP2_DIR;
+            //cnt = SN_USB->EP2CTL & mskEPn_CNT;
 		}
 		if (iwIntFlag & mskEP3_NAK)
 		{
-			/* EP3 NAK */
             __USB_CLRINSTS(mskEP3_NAK);
-			// USB_EP3NakEvent();
-            USB_EPnAck(USB_EP3, 0);
+            ep = USB_EP3;
+            out = ( SN_USB->CFG & mskEP3_DIR ) == mskEP3_DIR;
+            //cnt = SN_USB->EP3CTL & mskEPn_CNT;
 		}
 		if (iwIntFlag & mskEP4_NAK)
 		{
-			/* EP4 NAK */
             __USB_CLRINSTS(mskEP4_NAK);
-			// USB_EP4NakEvent();
-            USB_EPnNak(USB_EP4);
+            ep = USB_EP4;
+            out = ( SN_USB->CFG & mskEP4_DIR ) == mskEP4_DIR;
+            //cnt = SN_USB->EP4CTL & mskEPn_CNT;
 		}
+
+        if(out)
+        {
+            USB_EPnAck(ep, 0);
+        }
+        else
+        {
+            USB_EPnNak(ep);
+
+            _usb_isr_invoke_in_cb(usbp, ep);
+        }
+        
 	}
 
 	/////////////////////////////////////////////////
@@ -797,14 +812,23 @@ void usb_lld_start_in(USBDriver *usbp, usbep_t ep)
 
     /* Transfer initialization.*/
     n = isp->txsize;
-    if (n > (size_t)usbp->epc[ep]->in_maxsize)
-        n = (size_t)usbp->epc[ep]->in_maxsize;
 
-    isp->txlast = n;
+    if((n > 0) || (ep == 0))
+    {
+        if (n > (size_t)usbp->epc[ep]->in_maxsize)
+            n = (size_t)usbp->epc[ep]->in_maxsize;
 
-    USB_EPnAck(ep, n);
+        isp->txlast = n;
 
-    sn32_usb_write_fifo(ep, isp->txbuf, n, false);
+        USB_EPnAck(ep, n);
+
+        sn32_usb_write_fifo(ep, isp->txbuf, n, false);
+    }
+    else
+    {
+        _usb_isr_invoke_in_cb(usbp, ep);
+    }
+    
 }
 
 /**
