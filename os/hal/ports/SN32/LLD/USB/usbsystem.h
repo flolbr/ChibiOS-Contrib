@@ -76,24 +76,24 @@ extern "C" {
 */
 
 #define USB_SYS_CLOCK_SETUP		1
-#define USB_SYS0_CLKCFG_VAL		USB_IHRC
+#define USB_SYS0_CLKCFG_VAL		USB_PLL
 #define USB_EHS_FREQ			12
 #define USB_PLL_MSEL			18
 #define USB_PLL_PSEL			3
-#define USB_PLL_FSEL			1
+#define USB_PLL_FSEL			0
 #define USB_PLL_CLKIN			0
 #define USB_PLL_ENABLE			1
 #define USB_AHB_PRESCALAR 		0x0
-#define USB_CLKOUT_SEL_VAL 		0x0	
-	
-	/*
+#define USB_CLKOUT_SEL_VAL 		0x0
+
+/*
 //-------- <<< end of configuration section >>> ------------------------------
 */
 /*----------------------------------------------------------------------------
   DEFINES
  *----------------------------------------------------------------------------*/
-#define	USB_IHRC		1
-#define	USB_ILRC		0
+#define	USB_IHRC		0
+#define	USB_ILRC		1
 #define USB_EHSXTAL		2
 #define USB_ELSXTAL		3
 #define USB_PLL			4

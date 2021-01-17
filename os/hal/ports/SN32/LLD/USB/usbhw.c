@@ -13,13 +13,14 @@
 #include	"usbhw.h"
 #include	"usbuser.h"
 #include	"usbdesc.h"
+#include "usbsystem.h"
 
-/*****************************************************************************
-* Description	:Setting USB for different Power domain
-*****************************************************************************/
-#define System_Power_Supply 			System_Work_at_5_0V					// only 3.3V, 5V
-	#define System_Work_at_3_3V				0
-	#define	System_Work_at_5_0V				1
+///*****************************************************************************
+//* Description	:Setting USB for different Power domain
+//*****************************************************************************/
+//#define System_Power_Supply 			System_Work_at_5_0V					// only 3.3V, 5V
+//	#define System_Work_at_3_3V				0
+//	#define	System_Work_at_5_0V				1
 
 
 /*****************************************************************************
@@ -38,74 +39,82 @@
 *****************************************************************************/
 void USB_Init	(void)
 {
-	volatile uint32_t	*pRam;
-	uint32_t 	wTmp;
-	USB_StandardVar_Init();
-	//USB_HidVar_Init();
+    volatile uint32_t	*pRam;
+    uint32_t 	wTmp, i;
+    USB_StandardVar_Init();
+//    USB_HidVar_Init();
 
-	/* Initialize clock and Enable USB PHY. */
-	SystemInit();
-	SystemCoreClockUpdate();
-	SN_SYS1->AHBCLKEN |= mskUSBCLK_EN;		// Enable USBCLKEN
+    /* Initialize clock and Enable USB PHY. */
+    USB_SystemInit();																// enable System,PLL,EHS XTAL by user setting
+    SN_SYS1->AHBCLKEN |= 0x02;									// Enable USBCLKEN
+    __USB_PHY_ENABLE;			// enable ESD_EN & PHY_EN
 
-	/* Initialize USB EP1~EP4 RAM Start address base on 64-bytes. */
-	USB_EPnBufferOffset(1,EP1_BUFFER_OFFSET_VALUE);
-	USB_EPnBufferOffset(2,EP2_BUFFER_OFFSET_VALUE);
-	USB_EPnBufferOffset(3,EP3_BUFFER_OFFSET_VALUE);
-	USB_EPnBufferOffset(4,EP4_BUFFER_OFFSET_VALUE);
+    /* Initialize USB  EP1~EP6 RAM address base on 64-bytes. */
+    USB_EPnBufferOffset(1,EP1_BUFFER_OFFSET_VALUE);
+    USB_EPnBufferOffset(2,EP2_BUFFER_OFFSET_VALUE);
+    USB_EPnBufferOffset(3,EP3_BUFFER_OFFSET_VALUE);
+    USB_EPnBufferOffset(4,EP4_BUFFER_OFFSET_VALUE);
+    USB_EPnBufferOffset(5,EP5_BUFFER_OFFSET_VALUE);
+    USB_EPnBufferOffset(6,EP6_BUFFER_OFFSET_VALUE);
 
-	/* Copy EP1~EP4 RAM Start address to array(wUSB_EPnOffset).*/
-	pRam = &wUSB_EPnOffset[0];
-	*(pRam+0) =  EP1_BUFFER_OFFSET_VALUE;
-	*(pRam+1) =  EP2_BUFFER_OFFSET_VALUE;
-	*(pRam+2) =  EP3_BUFFER_OFFSET_VALUE;
-	*(pRam+3) =  EP4_BUFFER_OFFSET_VALUE;
+    /* Initialize EP1~EP6 RAM point address to array(wUSB_EPnOffset).*/
+    pRam = &wUSB_EPnOffset[0];
+    *(pRam+0) = (uint32_t)(&USB_SRAM_EP0_W0) + EP1_BUFFER_OFFSET_VALUE;
+    *(pRam+1) = (uint32_t)(&USB_SRAM_EP0_W0) + EP2_BUFFER_OFFSET_VALUE;
+    *(pRam+2) = (uint32_t)(&USB_SRAM_EP0_W0) + EP3_BUFFER_OFFSET_VALUE;
+    *(pRam+3) = (uint32_t)(&USB_SRAM_EP0_W0) + EP4_BUFFER_OFFSET_VALUE;
+    *(pRam+4) = (uint32_t)(&USB_SRAM_EP0_W0) + EP5_BUFFER_OFFSET_VALUE;
+    *(pRam+5) = (uint32_t)(&USB_SRAM_EP0_W0) + EP6_BUFFER_OFFSET_VALUE;
 
-	/* Initialize EP0~EP4 package size to array(wUSB_EPnPacketsize).*/
-	pRam = &wUSB_EPnPacketsize[0];
-	*(pRam+0) = USB_EP0_PACKET_SIZE;
-	*(pRam+1) = USB_EP1_PACKET_SIZE;
-	*(pRam+2) = USB_EP2_PACKET_SIZE;
-	*(pRam+3) = USB_EP3_PACKET_SIZE;
-	*(pRam+4) = USB_EP4_PACKET_SIZE;
+    /* Initialize EP1~EP6 package size to array(wUSB_EPnPacketsize).*/
+    pRam = &wUSB_EPnPacketsize[0];
+    *(pRam+0) = USB_EP0_PACKET_SIZE;
+    *(pRam+1) = USB_EP1_PACKET_SIZE;
+    *(pRam+2) = USB_EP2_PACKET_SIZE;
+    *(pRam+3) = USB_EP3_PACKET_SIZE;
+    *(pRam+4) = USB_EP4_PACKET_SIZE;
+    *(pRam+5) = USB_EP5_PACKET_SIZE;
+    *(pRam+6) = USB_EP6_PACKET_SIZE;
 
-	/* Enable the USB Interrupt */
-	SN_USB->INTEN = (mskBUS_IE|mskUSB_IE|mskEPnACK_EN|mskBUSWK_IE);
-	SN_USB->INTEN |= mskEP1_NAK_EN;
-	SN_USB->INTEN |= mskEP2_NAK_EN;
-	SN_USB->INTEN |= mskEP3_NAK_EN;
-	SN_USB->INTEN |= mskEP4_NAK_EN;
-	SN_USB->INTEN |= mskUSB_SOF_IE;
+    /* Enable the USB Interrupt */
+    SN_USB->INTEN = (mskBUS_IE|mskUSB_IE);
+    /* BUS_DRVEN = 0, BUS_DP = 1, BUS_DN = 0 */
+    SN_USB->SGCTL = mskBUS_J_STATE;
+    /* VREG33_EN = 1, PHY_EN = 1, DPPU_EN = 1, SIE_EN = 1, USBRAM_EN = 1, FLTDET_PUEN = 1 */
+    wTmp = (mskVREG33_EN|mskPHY_EN|mskDPPU_EN|mskSIE_EN|mskESD_EN|mskUSBRAM_EN|mskVREG33DIS_EN|mskFLTDET_PUEN_DISABLE);
 
-	NVIC_ClearPendingIRQ(USB_IRQn);
-	NVIC_EnableIRQ(USB_IRQn);
+    /*	setting EP1~EP6 Direction	*/
+#if (USB_EP1_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP1_DIR;
+#endif
+#if (USB_EP2_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP2_DIR;
+#endif
+#if (USB_EP3_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP3_DIR;
+#endif
+#if (USB_EP4_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP4_DIR;
+#endif
+#if (USB_EP5_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP5_DIR;
+#endif
+#if (USB_EP6_DIRECTION == USB_DIRECTION_OUT)
+    wTmp |= mskEP6_DIR;
+#endif
 
-	/* BUS_DRVEN = 0, BUS_DP = 1, BUS_DN = 0 */
-	SN_USB->SGCTL = mskBUS_J_STATE;
+    NVIC_ClearPendingIRQ(USB_IRQn);
+    NVIC_EnableIRQ(USB_IRQn);
+//	NVIC_DisableIRQ(USB_IRQn);
 
-	#if (System_Power_Supply == System_Work_at_5_0V)
-			//----------------------------------//
-			//Setting USB for System work at 5V	//
-			//----------------------------------//
-			//VREG33_EN = 1, PHY_EN = 1, DPPU_EN = 1, SIE_EN = 1, ESD_EN = 1
-			wTmp = (mskVREG33_EN|mskPHY_EN|mskDPPU_EN|mskSIE_EN|mskESD_EN);
+    //!!NEVER REMOVE!!!
+    SN_USB->CFG = wTmp;
+    for (i = 0; i < DISCHARE_DELAY; i++);
+    SN_USB->CFG = (wTmp&(~mskVREG33DIS_EN))|mskDPPU_EN;
+    //!!NEVER REMOVE!!!
 
-	#elif (System_Power_Supply == System_Work_at_3_3V)
-			//------------------------------------//
-			//Setting USB for System work at 3.3V	//
-			//------------------------------------//
-			//VREG33_EN = 0, PHY_EN = 1, DPPU_EN = 1, SIE_EN = 1, ESD_EN = 1
-			wTmp = (mskVREG33_DIS|mskPHY_EN|mskDPPU_EN|mskSIE_EN|mskESD_EN);
-	#endif
-
-	//** Delay for the connection between Device and Host
-	// UT_MAIN_DelayNms(50);
-    // chThdSleepMilliseconds(50);
-	//** Setting USB Configuration Register
- 	SN_USB->CFG = wTmp;
-
-	SN_USB->PHYPRM = 0x80000000;			// PHY parameter
-	SN_USB->PHYPRM2 = 0x00004004;			// PHY parameter 2
+    SN_USB->PHYPRM = (0x01U<<31);
+    return;
 }
 
 
@@ -238,7 +247,7 @@ void USB_ClrEPnToggle	(uint32_t	hwEPNum)
 
 /*****************************************************************************
 * Function		: USB_EPnDisable
-* Description	: Disable EP1~EP4
+* Description	: Disable EP1~EP6
 * Input				: wEPNum
 * Output			: None
 * Return			: None
@@ -246,17 +255,17 @@ void USB_ClrEPnToggle	(uint32_t	hwEPNum)
 *****************************************************************************/
 void USB_EPnDisable (uint32_t	wEPNum)
 {
-	volatile uint32_t	*pEPn_ptr;
-	if(wEPNum > USB_EP4)
-		return;
-	pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
-	*pEPn_ptr = 0;								//** SET DISABLE. No handshake IN/OUT token.
+    volatile uint32_t	*pEPn_ptr;
+    if(wEPNum > USB_EP6)
+        return;
+    pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
+    *pEPn_ptr = 0;								//SET DISABLE. No handshake IN/OUT token.
 }
 
 
 /*****************************************************************************
 * Function		: USB_EPnNak
-* Description	: SET EP1~EP4 is NAK. For IN will handshake NAK to IN token.
+* Description	: SET EP1~EP6 is NAK. For IN will handshake NAK to IN token.
 *																		For OUT will handshake NAK to OUT token.
 * Input				: wEPNum
 * Output			: None
@@ -265,19 +274,19 @@ void USB_EPnDisable (uint32_t	wEPNum)
 *****************************************************************************/
 void USB_EPnNak (uint32_t	wEPNum)
 {
-	volatile	uint32_t	*pEPn_ptr;
-	if(wEPNum > USB_EP4)
-		return;
-	pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
-	*pEPn_ptr = mskEPn_ENDP_EN;			//** SET NAK
+    volatile	uint32_t	*pEPn_ptr;
+    if(wEPNum > USB_EP6)
+        return;
+    pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
+    *pEPn_ptr = mskEPn_ENDP_EN;			//SET NAK
 }
 
 
 /*****************************************************************************
 * Function		: USB_EPnAck
-* Description	: SET EP1~EP4 is ACK. For IN will handshake bBytent to IN token.
+* Description	: SET EP1~EP6 is ACK. For IN will handshake bBytent to IN token.
 *																		For OUT will handshake ACK to OUT token.
-* Input				: wEPNum:EP1~EP4.
+* Input				: wEPNum:EP1~EP6.
 *								bBytecnt: Byte Number of Handshake.
 * Output			: None
 * Return			: None
@@ -285,35 +294,35 @@ void USB_EPnNak (uint32_t	wEPNum)
 *****************************************************************************/
 void USB_EPnAck (uint32_t	wEPNum, uint8_t	bBytecnt)
 {
-	volatile	uint32_t	*pEPn_ptr;
-	if (wEPNum > USB_EP4)
-		return;
-	pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
-	*pEPn_ptr = (mskEPn_ENDP_EN|mskEPn_ENDP_STATE_ACK|bBytecnt);
+    volatile	uint32_t	*pEPn_ptr;
+    if (wEPNum > USB_EP6)
+        return;
+    pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
+    *pEPn_ptr = (mskEPn_ENDP_EN|mskEPn_ENDP_STATE_ACK|bBytecnt);
 }
 
 
 /*****************************************************************************
 * Function		: USB_EPnAck
-* Description	: SET EP1~EP4 is STALL. For IN will handshake STALL to IN token.
+* Description	: SET EP1~EP6 is STALL. For IN will handshake STALL to IN token.
 *																			For OUT will handshake STALL to OUT token.
-* Input				: wEPNum:EP1~EP4.
+* Input				: wEPNum:EP1~EP6.
 * Output			: None
 * Return			: None
 * Note				: None
 *****************************************************************************/
 void USB_EPnStall (uint32_t	wEPNum)
 {
-	volatile uint32_t	*pEPn_ptr;
-	if(wEPNum > USB_EP4)				//** wEPNum != EP0~EP4
-		return;
-	pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
-	if (wEPNum == USB_EP0)
-	{
-			if(SN_USB->INSTS & mskEP0_PRESETUP)
-				return;
-	}
-	*pEPn_ptr = (mskEPn_ENDP_EN|mskEPn_ENDP_STATE_STALL);
+    volatile uint32_t	*pEPn_ptr;
+    if(wEPNum > USB_EP6)				//wEPNum != EP0~EP6
+        return;
+    pEPn_ptr = &SN_USB->EP0CTL + wEPNum;
+    if (wEPNum == USB_EP0)
+    {
+        if(SN_USB->INSTS & mskEP0_PRESETUP)
+            return;
+    }
+    *pEPn_ptr = (mskEPn_ENDP_EN|mskEPn_ENDP_STATE_STALL);
 }
 
 
@@ -334,41 +343,40 @@ void USB_RemoteWakeUp()
 	SN_USB->SGCTL &= ~mskBUS_DRVEN;
 }
 
-
 /*****************************************************************************
-* Function		: USB_DelayJstate
-* Description	: For J state delay. about 180us
-* Input				: None
-* Output			: None
-* Return			: None
-* Note				: None
-*****************************************************************************/
-void	USB_DelayJstate()
+ * Function		: USB_DelayJstate
+ * Description	: For J state delay. about 180us
+ * Input				: None
+ * Output			: None
+ * Return			: None
+ * Note				: None
+ *****************************************************************************/
+void USB_DelayJstate()
 {
-	uint32_t	i = 1500>>SN_SYS0->AHBCP;
-	while(i--);
+    uint32_t i;
+    for (i = 0; i < 300; i++)
+        ;  // delay 180us
 }
 
-
 /*****************************************************************************
-* Function		: USB_DelayKstate
-* Description	: For K state delay. about 9~10ms
-* Input				: None
-* Output			: None
-* Return			: None
-* Note				: None
-*****************************************************************************/
-void	USB_DelayKstate()
+ * Function		: USB_DelayKstate
+ * Description	: For K state delay. about 14 ~ 14.5ms
+ * Input				: None
+ * Output			: None
+ * Return			: None
+ * Note				: None
+ *****************************************************************************/
+void USB_DelayKstate()
 {
-	uint32_t	i = 80000>>SN_SYS0->AHBCP;		//** 10ms @ 12~48MHz
-	while(i--);															//** require delay 1ms ~ 15ms
+    uint32_t i;
+    for (i = 0; i < K_STATE_DELAY; i++)
+        ;  // require delay 1ms ~ 15ms
 }
-
 
 /*****************************************************************************
 * Function		: USB_EPnBufferOffset
-* Description	: SET EP1~EP4 RAM point address
-* Input				: wEPNum: EP1~EP4
+* Description	: SET EP1~EP6 RAM point address
+* Input				: wEPNum: EP1~EP6
 *								wAddr of device address
 * Output			: None
 * Return			: None
@@ -376,12 +384,12 @@ void	USB_DelayKstate()
 *****************************************************************************/
 void	USB_EPnBufferOffset(uint32_t	wEPNum, uint32_t	wAddr)
 {
-	volatile	uint32_t	*pEPn_ptr;
-	if ((wEPNum > USB_EP0) && (wEPNum <= USB_EP4))	//** wEPNum = EP1 ~ EP4
-	{
-		pEPn_ptr = &SN_USB->EP1BUFOS; 		//** Assign point to EP1 RAM address
-		*(pEPn_ptr+wEPNum-1) = wAddr;			//** SET point to EPn RAM address
-	}
+    volatile	uint32_t	*pEPn_ptr;
+    if ((wEPNum > USB_EP0) && (wEPNum <= USB_EP6))	//wEPNum = EP1 ~ EP6
+    {
+        pEPn_ptr = &SN_USB->EP1BUFOS; 		// Assign point to EP1 RAM address
+        *(pEPn_ptr+wEPNum-1) = wAddr;			// SET point to EPn RAM address
+    }
 }
 
 

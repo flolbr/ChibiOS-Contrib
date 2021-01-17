@@ -31,7 +31,7 @@
  * @brief   Number of the available endpoints.
  * @details This value does not include the endpoint 0 which is always present.
  */
-#define USB_ENDOPOINTS_NUMBER           4
+#define USB_ENDOPOINTS_NUMBER           6
 
 /**
  * @brief USB registers block numeric address.

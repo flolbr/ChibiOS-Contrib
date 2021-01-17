@@ -11,12 +11,12 @@
 
 /*_____ D E C L A R A T I O N S ____________________________________________*/
 /*_____________ USB Variable ____________________________________________*/
-volatile	uint32_t	wUSB_EPnOffset[4];
-volatile	uint32_t	wUSB_EPnPacketsize[5];
-volatile	uint8_t		wUSB_EndpHalt[5];
+volatile	uint32_t	wUSB_EPnOffset[6];
+volatile	uint32_t	wUSB_EPnPacketsize[7];
+volatile	uint8_t		wUSB_EndpHalt[7];
 const	uint8_t	*pUSB_TableIndex;
 volatile	uint32_t	wUSB_TableLength;
-volatile	uint8_t	wUSB_IfAlternateSet[4];
+volatile	uint8_t	wUSB_IfAlternateSet[6];
 uint8_t		bNDT_Flag;
 uint16_t	dbNDT_Cnt;
 uint32_t	wUSB_PreTableLength;

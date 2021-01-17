@@ -16,7 +16,7 @@
 #define USB_KB_MOUSE_TYPE1				1	// KB+Mouse(EP1 Standard + EP2 Mouse + EP3 hot key)
 #define USB_MOUSE_TYPE						2	// Mouse(EP1)
 #define USB_KB_MOUSE_TYPE2				3	// KB+Mouse(EP1 Standard + EP2 Mouse/Consumer page)
-#define USB_LIBRARY_TYPE				USB_KB_MOUSE_TYPE2
+#define USB_LIBRARY_TYPE				USB_MOUSE_TYPE
 
 /*****************************************************************************
 * Description	: USB_VID
@@ -27,25 +27,25 @@
 * Description	: USB_PID
 *****************************************************************************/
 #if (USB_LIBRARY_TYPE == USB_KB_MOUSE_TYPE1)
-	#define	USB_PID	0x7043
+	#define	USB_PID	0x7901
 #elif (USB_LIBRARY_TYPE == USB_MOUSE_TYPE)
-	#define	USB_PID	0x7041
+	#define	USB_PID	0x7902
 #elif (USB_LIBRARY_TYPE == USB_KB_MOUSE_TYPE2)
-	#define	USB_PID	0x7044
+	#define	USB_PID	0x7903
 #endif
 
 /*****************************************************************************
 * Description	: USB_REV
 *****************************************************************************/
-#define	USB_REV	0x0104
+#define	USB_REV	0x0106
 
-/*****************************************************************************
-* Description	: USB EPn Buffer Offset Register
-*****************************************************************************/
+/* USB EPn Buffer Offset Register */
 #define	EP1_BUFFER_OFFSET_VALUE	0x40
 #define	EP2_BUFFER_OFFSET_VALUE	0x80
 #define	EP3_BUFFER_OFFSET_VALUE	0xC0
-#define	EP4_BUFFER_OFFSET_VALUE	0xE0
+#define	EP4_BUFFER_OFFSET_VALUE	0x100
+#define	EP5_BUFFER_OFFSET_VALUE	0x140
+#define	EP6_BUFFER_OFFSET_VALUE	0x180
 
 
 /*****************************************************************************
@@ -56,16 +56,20 @@
 #define	USB_SETREPORT_SIZE				USB_SETUP_PACKET_SIZE/4
 
 /* USB Endpoint Max Packet Size */
-#define USB_EP1_PACKET_SIZE										0x40
+#define USB_EP1_PACKET_SIZE										0x40 // FixMe: 0x40 ?
 #define USB_EP2_PACKET_SIZE										0x08
 #define USB_EP3_PACKET_SIZE										0x08
 #define USB_EP4_PACKET_SIZE										0x08
+#define USB_EP5_PACKET_SIZE										0x08
+#define USB_EP6_PACKET_SIZE										0x08
 
-/* EP1~EP4 Direction define */
+/* EP1~EP6 Direction define */
 #define USB_EP1_DIRECTION					1					// IN = 1; OUT = 0
 #define USB_EP2_DIRECTION					1					// IN = 1; OUT = 0
 #define USB_EP3_DIRECTION					1					// IN = 1; OUT = 0
-#define USB_EP4_DIRECTION					0					// IN = 1; OUT = 0
+#define USB_EP4_DIRECTION					1					// IN = 1; OUT = 0
+#define USB_EP5_DIRECTION					1					// IN = 1; OUT = 0
+#define USB_EP6_DIRECTION					0					// IN = 1; OUT = 0
 
 /* USB Endpoint Direction */
 #define USB_DIRECTION_OUT											0
@@ -178,7 +182,7 @@ typedef struct STRUCT_DESCRIPTOR_INFO{
 	uint16_t	wTable_length;
 	const	uint8_t	*pTable_Index;
 }STRUCT_DESCRIPTOR_INFO_A;
-extern const	STRUCT_DESCRIPTOR_INFO_A DesInfo[];
+extern STRUCT_DESCRIPTOR_INFO_A DesInfo[];
 
 #define USB_GETDESCRIPTOR_MAX 18		//by DesInfo size
 #define USB_DES_STRING_MAX 		3		//by DesInfo size

@@ -45,9 +45,6 @@ extern	volatile uint8_t		wUSB_EndpHalt[];
 extern	const	uint8_t	*pUSB_TableIndex;
 extern	volatile uint32_t	wUSB_TableLength;
 extern	volatile uint8_t	wUSB_IfAlternateSet[];
-extern	uint8_t		bNDT_Flag;
-extern	uint16_t	dbNDT_Cnt;
-extern	uint32_t	wUSB_PreTableLength;
 
 extern	uint16_t	mode;
 extern	uint32_t	cnt;

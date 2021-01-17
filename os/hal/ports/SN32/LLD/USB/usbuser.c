@@ -13,6 +13,7 @@
 #include	"usbuser.h"
 #include	"usbram.h"
 #include	"usbdesc.h"
+#include	"usbsystem.h"
 
 
 /*****************************************************************************
@@ -42,16 +43,16 @@
 *****************************************************************************/
 void USB_ResetEvent (void)
 {
-	uint32_t	wLoop;
-	__USB_CLRINSTS(0xFFFFFFFF);		//** Clear all USB Event status
+    uint32_t	wLoop;
+    __USB_CLRINSTS(0xFFFFFFFF);		// Clear all USB Event status
 
-	sUSB_EumeData.wUSB_Status = mskBUSRESET;	//** Set BusReset = 1
-	sUSB_EumeData.wUSB_SetConfiguration = 0;	//** Clear Set Configuration
-	__USB_SETADDRESS(0);					//** Set USB address = 0
-	USB_EPnStall(USB_EP0);				//** Set EP0 enable & INOUTSTALL
+    sUSB_EumeData.wUSB_Status = mskBUSRESET;	// Set BusReset = 1
 
-	for (wLoop=USB_EP1; wLoop<=USB_EP4; wLoop++)
-		USB_EPnDisable(wLoop);			//** Set EP1~EP4 disable & NAK
+    __USB_SETADDRESS(0);					// Set USB address = 0
+    USB_EPnStall(USB_EP0);			// Set EP0 enable & INOUTSTALL
+
+    for (wLoop=USB_EP1; wLoop<=USB_EP6; wLoop++)
+        USB_EPnDisable(wLoop);		// Set EP1~EP6 disable & NAK
 }
 
 
@@ -94,6 +95,7 @@ void USB_ResumeEvent (void)
 *****************************************************************************/
 void USB_WakeupEvent	(void)
 {
+  USB_SystemInit();													// enable System,PLL,EHS XTAL by user setting
 	__USB_PHY_ENABLE;												//** enable ESD_EN & PHY_EN
 	__USB_CLRINSTS(mskBUS_WAKEUP);					//** Clear BUS_WAKEUP
 }
@@ -123,25 +125,23 @@ void USB_SOFEvent (void)
 *****************************************************************************/
 void USB_StandardVar_Init(void)
 {
-	uint32_t	i;
+    uint32_t	i;
 
-	for(i=0; i<5; i++)
-	{
-		wUSB_EndpHalt[i]=0;
-	}
-	for(i=0; i<4; i++)
-	{
-		wUSB_IfAlternateSet[i]=0;
-	}
-	sUSB_EumeData.bUSB_bmRequestType = 0;
-	sUSB_EumeData.bUSB_bRequest=0;
-	sUSB_EumeData.bUSB_wValueL=0;
-	sUSB_EumeData.bUSB_wValueH=0;
-	sUSB_EumeData.bUSB_wIndexL=0;
-	sUSB_EumeData.bUSB_wIndexH=0;
-	sUSB_EumeData.bUSB_wLength=0;
-	sUSB_EumeData.wUSB_SetConfiguration = 0;
-	sUSB_EumeData.bUSB_DeviceAddr=0;
-	sUSB_EumeData.wUSB_Status |= mskINITREPEAT;
+    for(i=0; i<7; i++)
+        wUSB_EndpHalt[i]=0;
+    for(i=0; i<6; i++)
+        wUSB_IfAlternateSet[i]=0;
+
+    sUSB_EumeData.bUSB_bmRequestType = 0;
+    sUSB_EumeData.bUSB_bRequest=0;
+    sUSB_EumeData.bUSB_wValueL=0;
+    sUSB_EumeData.bUSB_wValueH=0;
+    sUSB_EumeData.bUSB_wIndexL=0;
+    sUSB_EumeData.bUSB_wIndexH=0;
+    sUSB_EumeData.bUSB_wLength=0;
+    sUSB_EumeData.wUSB_SetConfiguration = 0;
+    sUSB_EumeData.bUSB_DeviceAddr=0;
+    sUSB_EumeData.wUSB_Status |= mskINITREPEAT;
+    //memset(structpoint, value,sizeof)
 }
 

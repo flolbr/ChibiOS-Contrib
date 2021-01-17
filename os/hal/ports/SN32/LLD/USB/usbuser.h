@@ -15,6 +15,8 @@
 #define USB_EP2																0x2
 #define USB_EP3																0x3
 #define USB_EP4																0x4
+#define USB_EP5																0x5
+#define USB_EP6																0x6
 
 /* USB Interface Address */
 #define USB_INTERFACE_0												0x0

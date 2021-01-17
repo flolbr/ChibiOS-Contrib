@@ -6,9 +6,9 @@
  * Version: V1.01
  * Date:		2013/12
  *------------------------------------------------------------------------------*/
-#include	<SN32F240.h>
-#include	"..\type.h"
-#include	"..\Utility\Utility.h"
+#include	<SN32F240B.h>
+//#include	"type.h"
+//#include	"..\Utility\Utility.h"
 
 #include	"usbsystem.h"
 
