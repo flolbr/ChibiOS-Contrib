@@ -77,7 +77,18 @@ void USB_Init	(void)
     *(pRam+6) = USB_EP6_PACKET_SIZE;
 
     /* Enable the USB Interrupt */
-    SN_USB->INTEN = (mskBUS_IE|mskUSB_IE);
+	SN_USB->INTEN = (mskBUS_IE|mskUSB_IE|/*mskEPnACK_EN|*/mskUSB_BUSWK_IE);
+	SN_USB->INTEN |= mskEP1_NAK_EN;
+	SN_USB->INTEN |= mskEP2_NAK_EN;
+	SN_USB->INTEN |= mskEP3_NAK_EN;
+	SN_USB->INTEN |= mskEP4_NAK_EN;
+	SN_USB->INTEN |= mskEP5_NAK_EN;
+	SN_USB->INTEN |= mskEP6_NAK_EN;
+	SN_USB->INTEN |= mskUSB_SOF_IE;
+
+	NVIC_ClearPendingIRQ(USB_IRQn);
+	NVIC_EnableIRQ(USB_IRQn);
+
     /* BUS_DRVEN = 0, BUS_DP = 1, BUS_DN = 0 */
     SN_USB->SGCTL = mskBUS_J_STATE;
     /* VREG33_EN = 1, PHY_EN = 1, DPPU_EN = 1, SIE_EN = 1, USBRAM_EN = 1, FLTDET_PUEN = 1 */

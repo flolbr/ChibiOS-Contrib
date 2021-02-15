@@ -94,157 +94,25 @@ void        rgb_matrix_toggle(void);
 /*===========================================================================*/
 
 static void sn32_usb_read_fifo(usbep_t ep, uint8_t *buf, size_t sz, bool intr) {
-    size_t ep_offset;
-    size_t off;
-    size_t chunk;
-    uint32_t data;
-    uint32_t	*pRAM = &USB_SRAM_EP0_W0;
-
-
-//    memcpy (buf, pRAM, 8);
-
-//    /* Determine offset in USB FIFO for the given endpoint */
-//    switch(ep)
-//    {
-//        default:
-//        case 0:
-//            ep_offset = 0;
-//            break;
-//        case 1:
-//            ep_offset = 0x40;
-//            break;
-//        case 2:
-//            ep_offset = 0x80;
-//            break;
-//        case 3:
-//            ep_offset = 0xC0;
-//            break;
-//        case 4:
-//            ep_offset = 0xE0;
-//    }
-
-    /* ==================================== */
+    uint32_t *pRAM = &USB_SRAM_EP0_W0;
 
     if (ep == 0) {
-        memcpy (buf, pRAM, sz);
+        memcpy(buf, pRAM, sz);
     } else {
-        memcpy(buf,(void *)wUSB_EPnOffset[ep-1],  sz);
+        memcpy(buf, (void *)wUSB_EPnOffset[ep - 1], sz);
     }
-
-    /* ==================================== */
-
-//    off = 0;
-//
-//    while (off != sz) {
-//        chunk = 4;
-//        if (off + chunk > sz)
-//            chunk = sz - off;
-//
-////        if(intr)
-////        {
-////            SN_USB->RWADDR = off + ep_offset;
-////            SN_USB->RWSTATUS = 0x02;
-////            while (SN_USB->RWSTATUS & 0x02);
-////
-////            data = SN_USB->RWDATA;
-////        }
-////        else
-////        {
-////            SN_USB->RWADDR2 = off + ep_offset;
-////            SN_USB->RWSTATUS2 = 0x02;
-////            while (SN_USB->RWSTATUS2 & 0x02);
-////
-////            data = SN_USB->RWDATA2;
-////        }
-//
-//        if (ep == 0) {
-//            memcpy (buf, (pRAM + off), chunk);
-//        } else {
-//            memcpy(buf,(void *)wUSB_EPnOffset[ep] + off,  chunk);
-//        }
-//
-//
-//        off += chunk;
-//        buf += chunk;
-//    }
 }
 
 static void sn32_usb_write_fifo(usbep_t ep, const uint8_t *buf, size_t sz, bool intr) {
-    size_t ep_offset;
-    size_t off;
-    size_t chunk;
-    uint32_t data;
-
     uint32_t *pRAM = &USB_SRAM_EP0_W0;
-
-
-//    /* Determine offset in USB FIFO for the given endpoint */
-//    switch(ep)
-//    {
-//        default:
-//        case 0:
-//            ep_offset = 0;
-//            break;
-//        case 1:
-//            ep_offset = 0x40;
-//            break;
-//        case 2:
-//            ep_offset = 0x80;
-//            break;
-//        case 3:
-//            ep_offset = 0xC0;
-//            break;
-//        case 4:
-//            ep_offset = 0xE0;
-//    }
-
-    /* ==================================== */
 
     if (ep == 0) {
         memcpy(pRAM, buf, sz);
     } else {
-        memcpy((void *)wUSB_EPnOffset[ep-1], buf, sz);
-
-//        volatile	uint32_t	*pUsbReg;
-//        uint32_t	wLoop;
-//        pUsbReg = (&SN_USB->EP0CTL) + ep;
-//
-//        pUsbReg = &wUSB_EPnPacketsize[ep];
-//        if (sz > *pUsbReg)
-//            return /*EPn_RETURN_OVER_MAX_SIZE*/;		//sz > EPn packet size
-//        pUsbReg = (uint32_t*)(*&wUSB_EPnOffset[ep-1]); //get EPn offset
-//
-//        for (wLoop=0; wLoop<=(sz>>2); wLoop++)
-//        {
-//            *(pUsbReg+wLoop) = *(buf+wLoop);
-//        }
-
-
-
+        memcpy((void *)wUSB_EPnOffset[ep - 1], buf, sz);
     }
-
-    /* ==================================== */
-
-//    off = 0;
-//
-//    while (off != sz) {
-//        chunk = 4;
-//        if (off + chunk > sz)
-//            chunk = sz - off;
-//
-//        memcpy(&data, buf, chunk);
-//
-//        if (ep == 0) {
-//            memcpy ((pRAM + off), buf, chunk);
-//        } else {
-//            memcpy((void *)wUSB_EPnOffset[ep] + off, buf, chunk);
-//        }
-//
-//
-//        off += chunk;
-//        buf += chunk;
-//    }
 }
+
 void rgb_matrix_disable_noeeprom(void);
 /**
  * @brief   USB shared ISR.
@@ -335,7 +203,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
                 USB_EPnStall(USB_EP0);
             }
 
-            USB_EPnAck(USB_EP0,0);
+//            USB_EPnAck(USB_EP0,0);
 
             isp->txcnt += isp->txlast;
             n = isp->txsize - isp->txcnt;
@@ -377,44 +245,6 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
 	/* Device Status Interrupt (EPnACK) 					 */
 	/////////////////////////////////////////////////
 	else if (iwIntFlag & (mskEP6_ACK|mskEP5_ACK|mskEP4_ACK|mskEP3_ACK|mskEP2_ACK|mskEP1_ACK))
-//    {
-//        if (iwIntFlag & mskEP1_ACK)
-//        {
-//            /* EP1 ACK */
-//            __USB_CLRINSTS(mskEP1_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 1);
-//        }
-//        if (iwIntFlag & mskEP2_ACK)
-//        {
-//            /* EP2 ACK */
-//            __USB_CLRINSTS(mskEP2_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 2);
-//        }
-//        if (iwIntFlag & mskEP3_ACK)
-//        {
-//            /* EP3 ACK */
-//            __USB_CLRINSTS(mskEP3_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 3);
-//        }
-//        if (iwIntFlag & mskEP4_ACK)
-//        {
-//            /* EP4 ACK */
-//            __USB_CLRINSTS(mskEP4_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 4);
-//        }
-//        if (iwIntFlag & mskEP5_ACK)
-//        {
-//            /* EP5 ACK */
-//            __USB_CLRINSTS(mskEP5_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 5);
-//        }
-//        if (iwIntFlag & mskEP6_ACK)
-//        {
-//            /* EP6 ACK */
-//            __USB_CLRINSTS(mskEP6_ACK);
-//            _usb_isr_invoke_in_cb(usbp, 6);
-//        }
-//    }
 	{
         usbep_t ep = USB_EP1;
         uint8_t out = 0;
@@ -523,7 +353,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
             }
         }
     }
-	/*else if (iwIntFlag & (mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK))
+	else if (iwIntFlag & (mskEP6_NAK|mskEP5_NAK|mskEP4_NAK|mskEP3_NAK|mskEP2_NAK|mskEP1_NAK))
 	{
         usbep_t ep = USB_EP1;
         uint8_t out = 0;
@@ -558,6 +388,20 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
             out = ( SN_USB->CFG & mskEP4_DIR ) == mskEP4_DIR;
             //cnt = SN_USB->EP4CTL & mskEPn_CNT;
 		}
+		if (iwIntFlag & mskEP5_NAK)
+		{
+            __USB_CLRINSTS(mskEP5_NAK);
+            ep = USB_EP5;
+            out = ( SN_USB->CFG & mskEP5_DIR ) == mskEP5_DIR;
+            //cnt = SN_USB->EP5CTL & mskEPn_CNT;
+		}
+		if (iwIntFlag & mskEP6_NAK)
+		{
+            __USB_CLRINSTS(mskEP6_NAK);
+            ep = USB_EP6;
+            out = ( SN_USB->CFG & mskEP6_DIR ) == mskEP6_DIR;
+            //cnt = SN_USB->EP6CTL & mskEPn_CNT;
+		}
 
         if(out)
         {
@@ -570,7 +414,7 @@ static void usb_lld_serve_interrupt(USBDriver *usbp)
             _usb_isr_invoke_in_cb(usbp, ep);
         }
 
-	}*/
+	}
 
 	/////////////////////////////////////////////////
 	/* Device Status Interrupt (SOF) 							 */

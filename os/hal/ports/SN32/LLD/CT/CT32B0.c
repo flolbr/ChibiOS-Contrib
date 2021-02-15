@@ -96,7 +96,7 @@ void	CT32B0_NvicDisable (void)
 * Return		: None
 * Note			: None
 *****************************************************************************/
-__irq void CT32B0_IRQHandler(void)
+__attribute__((interrupt("IRQ"))) void CT32B0_IRQHandler(void)
 {
 	uint32_t iwRisStatus;
 
